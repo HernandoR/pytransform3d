@@ -1,6 +1,7 @@
 """Batch operations for quaternions."""
 
 import numpy as np
+import array_api_compat as xarray
 
 from ._axis_angle import norm_axis_angles
 from ._utils import norm_vectors
@@ -99,8 +100,11 @@ def batch_concatenate_quaternions(Q1, Q2, out=None):
     ValueError
         If the input dimensions are incorrect
     """
-    Q1 = np.asarray(Q1)
-    Q2 = np.asarray(Q2)
+    # Q1 = np.asarray(Q1)
+    # Q2 = np.asarray(Q2)
+    xp=xarray.array_namespace(Q1,Q2)
+    Q1 = xp.asarray(Q1)
+    Q2 = xp.asarray(Q2)
 
     if Q1.ndim != Q2.ndim:
         raise ValueError(
@@ -125,14 +129,16 @@ def batch_concatenate_quaternions(Q1, Q2, out=None):
         )
 
     if out is None:
-        out = np.empty_like(Q1)
+        # out = np.empty_like(Q1)
+        out = xp.empty_like(Q1)
 
-    vector_inner_products = np.sum(Q1[..., 1:] * Q2[..., 1:], axis=-1)
+    # vector_inner_products = np.sum(Q1[..., 1:] * Q2[..., 1:], axis=-1)
+    vector_inner_products = xp.sum(Q1[..., 1:] * Q2[..., 1:], axis=-1)
     out[..., 0] = Q1[..., 0] * Q2[..., 0] - vector_inner_products
     out[..., 1:] = (
-        Q1[..., 0, np.newaxis] * Q2[..., 1:]
-        + Q2[..., 0, np.newaxis] * Q1[..., 1:]
-        + np.cross(Q1[..., 1:], Q2[..., 1:])
+        Q1[..., 0, xp.newaxis] * Q2[..., 1:]
+        + Q2[..., 0, xp.newaxis] * Q1[..., 1:]
+        + xp.cross(Q1[..., 1:], Q2[..., 1:])
     )
     return out
 
@@ -154,8 +160,12 @@ def batch_q_conj(Q):
     Q_c : array, shape (..., 4,)
         Conjugates (w, -x, -y, -z)
     """
-    Q = np.asarray(Q)
-    out = np.empty_like(Q)
+    # Q = np.asarray(Q)
+    # out = np.empty_like(Q)
+    xp=xarray.array_namespace(Q)
+    Q = xp.asarray(Q)
+    out = xp.empty_like(Q)
+    
     out[..., 0] = Q[..., 0]
     out[..., 1:] = -Q[..., 1:]
     return out

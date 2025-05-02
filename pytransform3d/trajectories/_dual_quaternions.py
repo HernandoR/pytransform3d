@@ -1,4 +1,5 @@
 """Dual quaternion operations."""
+import array_api_compat as xarray
 
 import numpy as np
 
@@ -32,10 +33,15 @@ def batch_dq_conj(dqs):
     dq_conjugates : array-like, shape (..., 8)
         Conjugates of dual quaternions: (pw, -px, -py, -pz, -qw, qx, qy, qz)
     """
-    out = np.empty_like(dqs)
+    # out = np.empty_like(dqs)
+    # out[..., 0] = dqs[..., 0]
+    # out[..., 1:5] = -dqs[..., 1:5]
+    # out[..., 5:] = dqs[..., 5:]
+    xp= xarray.array_namespace(dqs)
+    out = xp.empty_like(dqs)
     out[..., 0] = dqs[..., 0]
     out[..., 1:5] = -dqs[..., 1:5]
-    out[..., 5:] = dqs[..., 5:]
+    out[..., 5:] = dqs[..., 5:]    
     return out
 
 
@@ -62,7 +68,14 @@ def batch_dq_q_conj(dqs):
     pytransform3d.transformations.dq_q_conj
         Quaternion conjugate of dual quaternions.
     """
-    out = np.empty_like(dqs)
+    # out = np.empty_like(dqs)
+    # out[..., 0] = dqs[..., 0]
+    # out[..., 1:4] = -dqs[..., 1:4]
+    # out[..., 4] = dqs[..., 4]
+    # out[..., 5:8] = -dqs[..., 5:8]
+    
+    xp= xarray.array_namespace(dqs)
+    out = xp.empty_like(dqs)
     out[..., 0] = dqs[..., 0]
     out[..., 1:4] = -dqs[..., 1:4]
     out[..., 4] = dqs[..., 4]
@@ -94,10 +107,15 @@ def batch_concatenate_dual_quaternions(dqs1, dqs2):
         Products of the two batches of dual quaternions:
         (pw, px, py, pz, qw, qx, qy, qz)
     """
-    dqs1 = np.asarray(dqs1)
-    dqs2 = np.asarray(dqs2)
+    # dqs1 = np.asarray(dqs1)
+    # dqs2 = np.asarray(dqs2)
 
-    out = np.empty_like(dqs1)
+    # out = np.empty_like(dqs1)
+    xp= xarray.array_namespace(dqs1,dqs2)
+    dqs1 = xp.asarray(dqs1)
+    dqs2 = xp.asarray(dqs2)
+    
+    out = xp.empty_like(dqs1)
     out[..., :4] = batch_concatenate_quaternions(dqs1[..., :4], dqs2[..., :4])
     out[..., 4:] = batch_concatenate_quaternions(
         dqs1[..., :4], dqs2[..., 4:]
@@ -121,9 +139,14 @@ def batch_dq_prod_vector(dqs, V):
     W : array, shape (3,)
         3d vectors
     """
-    dqs = np.asarray(dqs)
+    # dqs = np.asarray(dqs)
 
-    v_dqs = np.empty_like(dqs)
+    # v_dqs = np.empty_like(dqs)
+    xp= xarray.array_namespace(dqs,V)
+    dqs = xp.asarray(dqs)
+    
+    v_dqs = xp.empty_like(dqs)
+    
     v_dqs[..., 0] = 1.0
     v_dqs[..., 1:5] = 0.0
     v_dqs[..., 5:] = V
@@ -187,9 +210,15 @@ def dual_quaternions_sclerp(starts, ends, ts):
     pytransform3d.transformations.dual_quaternion_sclerp :
         Screw linear interpolation (ScLERP) for dual quaternions.
     """
-    starts = np.asarray(starts)
-    ends = np.asarray(ends)
-    ts = np.asarray(ts)
+    # starts = np.asarray(starts)
+    # ends = np.asarray(ends)
+    # ts = np.asarray(ts)
+    
+    xp= xarray.array_namespace(starts,ends,ts)
+    starts = xp.asarray(starts)
+    ends = xp.asarray(ends)
+    ts = xp.asarray(ts)
+        
 
     if starts.shape != ends.shape:
         raise ValueError(
@@ -224,9 +253,12 @@ def pqs_from_dual_quaternions(dqs):
         Poses represented by positions and quaternions in the
         order (x, y, z, qw, qx, qy, qz)
     """
-    dqs = np.asarray(dqs)
+    # dqs = np.asarray(dqs)
+    xp= xarray.array_namespace(dqs)
+    dqs = xp.asarray(dqs)
     instances_shape = dqs.shape[:-1]
-    out = np.empty(instances_shape + (7,))
+    # out = np.empty(instances_shape + (7,))
+    out = xp.empty(instances_shape + (7,))
     out[..., 3:] = dqs[..., :4]
     out[..., :3] = (
         2
@@ -236,7 +268,7 @@ def pqs_from_dual_quaternions(dqs):
     )
     return out
 
-
+# todo
 def screw_parameters_from_dual_quaternions(dqs):
     """Compute screw parameters from dual quaternions.
 
@@ -267,11 +299,16 @@ def screw_parameters_from_dual_quaternions(dqs):
     pytransform3d.transformations.screw_parameters_from_dual_quaternion :
         Compute screw parameters from dual quaternion.
     """
+    xp= xarray.array_namespace(dqs)
+    if not hasattr(xp, 'linalg'):
+        raise ValueError(f"The array namespace {xp} does not support linalg operations.")
+    
     reals = dqs[..., :4]
     duals = dqs[..., 4:]
 
     a = axis_angles_from_quaternions(reals)
-    s_axis = np.copy(a[..., :3])
+    # s_axis = np.copy(a[..., :3])
+    s_axis = xp.copy(a[..., :3])
     thetas = a[..., 3]
 
     translation = (
@@ -283,46 +320,85 @@ def screw_parameters_from_dual_quaternions(dqs):
     # we use mask array to enable vectorized operations
     # the name of the mask represent the according block in
     # the original function
-    outer_if_mask = np.abs(thetas) < np.finfo(float).eps
-    outer_else_mask = np.logical_not(outer_if_mask)
+    
+    # outer_if_mask = np.abs(thetas) < np.finfo(float).eps
+    # outer_else_mask = np.logical_not(outer_if_mask)
+    outer_if_mask = xp.abs(thetas) < xp.finfo(float).eps
+    outer_else_mask = xp.logical_not(outer_if_mask)
 
-    ds = np.linalg.norm(translation, axis=-1)
-    inner_if_mask = ds < np.finfo(float).eps
+    # ds = np.linalg.norm(translation, axis=-1)
+    # inner_if_mask = ds < np.finfo(float).eps
+    ds= xp.linalg.norm(translation, axis=-1)
+    inner_if_mask = ds < xp.finfo(float).eps
 
-    outer_if_inner_if_mask = np.logical_and(outer_if_mask, inner_if_mask)
-    outer_if_inner_else_mask = np.logical_and(
-        outer_if_mask, np.logical_not(inner_if_mask)
+    # outer_if_inner_if_mask = np.logical_and(outer_if_mask, inner_if_mask)
+    # outer_if_inner_else_mask = np.logical_and(
+    #     outer_if_mask, np.logical_not(inner_if_mask)
+    # )
+    outer_if_inner_if_mask = xp.logical_and(outer_if_mask, inner_if_mask)
+    outer_if_inner_else_mask = xp.logical_and(
+        outer_if_mask, xp.logical_not(inner_if_mask)
     )
 
-    if np.any(outer_if_inner_if_mask):
-        s_axis[outer_if_inner_if_mask] = np.array([1.0, 0.0, 0.0])
+    # if np.any(outer_if_inner_if_mask):
+    #     s_axis[outer_if_inner_if_mask] = np.array([1.0, 0.0, 0.0])
+    if xp.any(outer_if_inner_if_mask):
+        s_axis[outer_if_inner_if_mask] = xp.array([1.0, 0.0, 0.0])
 
-    if np.any(outer_if_inner_else_mask):
+    # if np.any(outer_if_inner_else_mask):
+    #     s_axis[outer_if_inner_else_mask] = (
+    #         translation[outer_if_inner_else_mask]
+    #         / ds[outer_if_inner_else_mask][..., np.newaxis]
+    #     )
+    if xp.any(outer_if_inner_else_mask):
         s_axis[outer_if_inner_else_mask] = (
             translation[outer_if_inner_else_mask]
-            / ds[outer_if_inner_else_mask][..., np.newaxis]
+            / ds[outer_if_inner_else_mask][..., xp.newaxis]
         )
 
-    qs = np.zeros(dqs.shape[:-1] + (3,))
+    # qs = np.zeros(dqs.shape[:-1] + (3,))
+    # thetas[outer_if_mask] = ds[outer_if_mask]
+    # hs = np.full(dqs.shape[:-1], np.inf)
+    qs = xp.zeros(dqs.shape[:-1] + (3,))
     thetas[outer_if_mask] = ds[outer_if_mask]
-    hs = np.full(dqs.shape[:-1], np.inf)
+    hs= xp.full(dqs.shape[:-1], xp.inf)
 
-    if np.any(outer_else_mask):
-        distance = np.einsum(
+    # if np.any(outer_else_mask):
+    #     distance = np.einsum(
+    #         "ij,ij->i", translation[outer_else_mask], s_axis[outer_else_mask]
+    #     )
+
+    #     moment = 0.5 * (
+    #         np.cross(translation[outer_else_mask], s_axis[outer_else_mask])
+    #         + (
+    #             translation[outer_else_mask]
+    #             - distance[..., np.newaxis] * s_axis[outer_else_mask]
+    #         )
+    #         / np.tan(0.5 * thetas[outer_else_mask])[..., np.newaxis]
+    #     )
+
+    #     qs[outer_else_mask] = np.cross(s_axis[outer_else_mask], moment)
+    #     hs[outer_else_mask] = distance / thetas[outer_else_mask]
+    if xp.any(outer_else_mask):
+        distance = xp.einsum(
             "ij,ij->i", translation[outer_else_mask], s_axis[outer_else_mask]
         )
 
         moment = 0.5 * (
-            np.cross(translation[outer_else_mask], s_axis[outer_else_mask])
+            xp.cross(translation[outer_else_mask], s_axis[outer_else_mask])
             + (
                 translation[outer_else_mask]
-                - distance[..., np.newaxis] * s_axis[outer_else_mask]
+                - distance[..., xp.newaxis] * s_axis[outer_else_mask]
             )
-            / np.tan(0.5 * thetas[outer_else_mask])[..., np.newaxis]
+            / xp.tan(0.5 * thetas[outer_else_mask])[..., xp.newaxis]
         )
 
-        qs[outer_else_mask] = np.cross(s_axis[outer_else_mask], moment)
+        qs[outer_else_mask] = xp.cross(s_axis[outer_else_mask], moment)
         hs[outer_else_mask] = distance / thetas[outer_else_mask]
+        
+        qs[outer_else_mask] = xp.cross(s_axis[outer_else_mask], moment)
+        hs[outer_else_mask] = distance / thetas[outer_else_mask]
+    
 
     return qs, s_axis, hs, thetas
 
@@ -341,9 +417,15 @@ def transforms_from_dual_quaternions(dqs):
     A2Bs : array, shape (..., 4, 4)
         Poses represented by homogeneous matrices
     """
-    dqs = np.asarray(dqs)
+    xp= xarray.array_namespace(dqs)
+    
+    
+    # dqs = np.asarray(dqs)
+    dqs = xp.asarray(dqs)
+    
     instances_shape = dqs.shape[:-1]
-    out = np.empty(instances_shape + (4, 4))
+    # out = np.empty(instances_shape + (4, 4))
+    out = xp.empty(instances_shape + (4, 4))
     out[..., :3, :3] = matrices_from_quaternions(dqs[..., :4])
     out[..., :3, 3] = (
         2
