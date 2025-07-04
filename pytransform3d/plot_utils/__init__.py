@@ -52,7 +52,7 @@ try:
 except ImportError as e:
     if e.name == "matplotlib":
         warnings.warn(
-            "Matplotlib is not installed, visualization is not " "available",
+            "Matplotlib is not installed, visualization is not available",
             ImportWarning,
             stacklevel=2,
         )

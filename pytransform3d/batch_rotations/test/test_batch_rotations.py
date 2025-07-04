@@ -486,14 +486,14 @@ def test_batch_concatenate_quaternions_mismatch():
     Q1 = np.zeros((1, 2, 3, 3))
     Q2 = np.zeros((1, 2, 3, 4))
     with pytest.raises(
-        ValueError, match="Last dimension of first argument does not " "match."
+        ValueError, match="Last dimension of first argument does not match."
     ):
         pbr.batch_concatenate_quaternions(Q1, Q2)
 
     Q1 = np.zeros((1, 2, 3, 4))
     Q2 = np.zeros((1, 2, 3, 3))
     with pytest.raises(
-        ValueError, match="Last dimension of second argument does " "not match."
+        ValueError, match="Last dimension of second argument does not match."
     ):
         pbr.batch_concatenate_quaternions(Q1, Q2)
 

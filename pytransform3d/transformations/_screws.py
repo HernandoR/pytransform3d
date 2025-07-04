@@ -308,8 +308,7 @@ def check_transform_log(transform_log, tolerance=1e-6, strict_check=True):
         )
     if any(transform_log[3] != 0.0):
         raise ValueError(
-            "Last row of logarithm of transformation must only "
-            "contains zeros."
+            "Last row of logarithm of transformation must only contains zeros."
         )
 
     check_skew_symmetric_matrix(transform_log[:3, :3], tolerance, strict_check)

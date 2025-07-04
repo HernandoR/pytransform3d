@@ -1,7 +1,6 @@
 """Dual quaternion operations."""
-import array_api_compat as xarray
 
-import numpy as np
+from pytransform3d.array_api import get_array_namespace
 
 from ._screws import (
     dual_quaternions_from_screw_parameters,
@@ -37,11 +36,11 @@ def batch_dq_conj(dqs):
     # out[..., 0] = dqs[..., 0]
     # out[..., 1:5] = -dqs[..., 1:5]
     # out[..., 5:] = dqs[..., 5:]
-    xp= xarray.array_namespace(dqs)
+    xp = get_array_namespace(dqs)
     out = xp.empty_like(dqs)
     out[..., 0] = dqs[..., 0]
     out[..., 1:5] = -dqs[..., 1:5]
-    out[..., 5:] = dqs[..., 5:]    
+    out[..., 5:] = dqs[..., 5:]
     return out
 
 
@@ -73,8 +72,8 @@ def batch_dq_q_conj(dqs):
     # out[..., 1:4] = -dqs[..., 1:4]
     # out[..., 4] = dqs[..., 4]
     # out[..., 5:8] = -dqs[..., 5:8]
-    
-    xp= xarray.array_namespace(dqs)
+
+    xp = get_array_namespace(dqs)
     out = xp.empty_like(dqs)
     out[..., 0] = dqs[..., 0]
     out[..., 1:4] = -dqs[..., 1:4]
@@ -111,10 +110,10 @@ def batch_concatenate_dual_quaternions(dqs1, dqs2):
     # dqs2 = np.asarray(dqs2)
 
     # out = np.empty_like(dqs1)
-    xp= xarray.array_namespace(dqs1,dqs2)
+    xp = get_array_namespace(dqs1, dqs2)
     dqs1 = xp.asarray(dqs1)
     dqs2 = xp.asarray(dqs2)
-    
+
     out = xp.empty_like(dqs1)
     out[..., :4] = batch_concatenate_quaternions(dqs1[..., :4], dqs2[..., :4])
     out[..., 4:] = batch_concatenate_quaternions(
@@ -142,11 +141,11 @@ def batch_dq_prod_vector(dqs, V):
     # dqs = np.asarray(dqs)
 
     # v_dqs = np.empty_like(dqs)
-    xp= xarray.array_namespace(dqs,V)
+    xp = get_array_namespace(dqs, V)
     dqs = xp.asarray(dqs)
-    
+
     v_dqs = xp.empty_like(dqs)
-    
+
     v_dqs[..., 0] = 1.0
     v_dqs[..., 1:5] = 0.0
     v_dqs[..., 5:] = V
@@ -213,12 +212,11 @@ def dual_quaternions_sclerp(starts, ends, ts):
     # starts = np.asarray(starts)
     # ends = np.asarray(ends)
     # ts = np.asarray(ts)
-    
-    xp= xarray.array_namespace(starts,ends,ts)
+
+    xp = get_array_namespace(starts, ends, ts)
     starts = xp.asarray(starts)
     ends = xp.asarray(ends)
     ts = xp.asarray(ts)
-        
 
     if starts.shape != ends.shape:
         raise ValueError(
@@ -254,7 +252,7 @@ def pqs_from_dual_quaternions(dqs):
         order (x, y, z, qw, qx, qy, qz)
     """
     # dqs = np.asarray(dqs)
-    xp= xarray.array_namespace(dqs)
+    xp = get_array_namespace(dqs)
     dqs = xp.asarray(dqs)
     instances_shape = dqs.shape[:-1]
     # out = np.empty(instances_shape + (7,))
@@ -267,6 +265,7 @@ def pqs_from_dual_quaternions(dqs):
         )[..., 1:]
     )
     return out
+
 
 # todo
 def screw_parameters_from_dual_quaternions(dqs):
@@ -299,10 +298,12 @@ def screw_parameters_from_dual_quaternions(dqs):
     pytransform3d.transformations.screw_parameters_from_dual_quaternion :
         Compute screw parameters from dual quaternion.
     """
-    xp= xarray.array_namespace(dqs)
-    if not hasattr(xp, 'linalg'):
-        raise ValueError(f"The array namespace {xp} does not support linalg operations.")
-    
+    xp = get_array_namespace(dqs)
+    if not hasattr(xp, "linalg"):
+        raise ValueError(
+            f"The array namespace {xp} does not support linalg operations."
+        )
+
     reals = dqs[..., :4]
     duals = dqs[..., 4:]
 
@@ -320,7 +321,7 @@ def screw_parameters_from_dual_quaternions(dqs):
     # we use mask array to enable vectorized operations
     # the name of the mask represent the according block in
     # the original function
-    
+
     # outer_if_mask = np.abs(thetas) < np.finfo(float).eps
     # outer_else_mask = np.logical_not(outer_if_mask)
     outer_if_mask = xp.abs(thetas) < xp.finfo(float).eps
@@ -328,7 +329,7 @@ def screw_parameters_from_dual_quaternions(dqs):
 
     # ds = np.linalg.norm(translation, axis=-1)
     # inner_if_mask = ds < np.finfo(float).eps
-    ds= xp.linalg.norm(translation, axis=-1)
+    ds = xp.linalg.norm(translation, axis=-1)
     inner_if_mask = ds < xp.finfo(float).eps
 
     # outer_if_inner_if_mask = np.logical_and(outer_if_mask, inner_if_mask)
@@ -361,7 +362,7 @@ def screw_parameters_from_dual_quaternions(dqs):
     # hs = np.full(dqs.shape[:-1], np.inf)
     qs = xp.zeros(dqs.shape[:-1] + (3,))
     thetas[outer_if_mask] = ds[outer_if_mask]
-    hs= xp.full(dqs.shape[:-1], xp.inf)
+    hs = xp.full(dqs.shape[:-1], xp.inf)
 
     # if np.any(outer_else_mask):
     #     distance = np.einsum(
@@ -395,10 +396,9 @@ def screw_parameters_from_dual_quaternions(dqs):
 
         qs[outer_else_mask] = xp.cross(s_axis[outer_else_mask], moment)
         hs[outer_else_mask] = distance / thetas[outer_else_mask]
-        
+
         qs[outer_else_mask] = xp.cross(s_axis[outer_else_mask], moment)
         hs[outer_else_mask] = distance / thetas[outer_else_mask]
-    
 
     return qs, s_axis, hs, thetas
 
@@ -417,12 +417,11 @@ def transforms_from_dual_quaternions(dqs):
     A2Bs : array, shape (..., 4, 4)
         Poses represented by homogeneous matrices
     """
-    xp= xarray.array_namespace(dqs)
-    
-    
+    xp = get_array_namespace(dqs)
+
     # dqs = np.asarray(dqs)
     dqs = xp.asarray(dqs)
-    
+
     instances_shape = dqs.shape[:-1]
     # out = np.empty(instances_shape + (4, 4))
     out = xp.empty(instances_shape + (4, 4))

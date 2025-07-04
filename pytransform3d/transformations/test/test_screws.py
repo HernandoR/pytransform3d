@@ -79,7 +79,7 @@ def test_check_screw_matrix():
         pt.check_screw_matrix(np.zeros((4, 3)))
 
     with pytest.raises(
-        ValueError, match="Last row of screw matrix must only " "contains zeros"
+        ValueError, match="Last row of screw matrix must only contains zeros"
     ):
         pt.check_screw_matrix(np.eye(4))
 
