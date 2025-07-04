@@ -1,6 +1,8 @@
 """Position+quaternion operations."""
 
-import numpy as np
+# import numpy as np
+
+from pytransform3d.array_api import get_array_namespace
 
 from ..batch_rotations import (
     matrices_from_quaternions,
@@ -25,9 +27,13 @@ def transforms_from_pqs(P, normalize_quaternions=True):
     A2Bs : array, shape (..., 4, 4)
         Poses represented by homogeneous matrices
     """
-    P = np.asarray(P)
+    # P = np.asarray(P)
+    xp = get_array_namespace(P)
+    P = xp.asarray(P)
+
     instances_shape = P.shape[:-1]
-    A2Bs = np.empty(instances_shape + (4, 4))
+    # A2Bs = np.empty(instances_shape + (4, 4))
+    A2Bs = xp.empty(instances_shape + (4, 4))
     A2Bs[..., :3, 3] = P[..., :3]
     A2Bs[..., 3, :3] = 0.0
     A2Bs[..., 3, 3] = 1.0
@@ -54,9 +60,10 @@ def dual_quaternions_from_pqs(pqs):
         Dual quaternions to represent transforms:
         (pw, px, py, pz, qw, qx, qy, qz)
     """
-    pqs = np.asarray(pqs)
+    xp = get_array_namespace(pqs)
+    pqs = xp.asarray(pqs)
     instances_shape = pqs.shape[:-1]
-    out = np.empty(instances_shape + (8,))
+    out = xp.empty(instances_shape + (8,))
 
     # orientation quaternion
     out[..., :4] = pqs[..., 3:]
