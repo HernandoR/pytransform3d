@@ -655,8 +655,7 @@ def _parse_joint(joint, link_names, strict_check):
         raise UrdfException("Unsupported joint type '%s'" % j.joint_type)
     if j.joint_type not in ["revolute", "continuous", "prismatic", "fixed"]:
         raise UrdfException(
-            "Joint type '%s' is not allowed in a URDF "
-            "document." % j.joint_type
+            "Joint type '%s' is not allowed in a URDF document." % j.joint_type
         )
 
     j.child2parent = _parse_origin(joint, strict_check)

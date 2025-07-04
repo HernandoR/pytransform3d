@@ -3,6 +3,8 @@
 import numpy as np
 import array_api_compat as xarray
 
+from pytransform3d.array_api import get_array_namespace
+
 from ._axis_angle import norm_axis_angles
 from ._utils import norm_vectors
 from ..rotations import (
@@ -102,7 +104,7 @@ def batch_concatenate_quaternions(Q1, Q2, out=None):
     """
     # Q1 = np.asarray(Q1)
     # Q2 = np.asarray(Q2)
-    xp=xarray.array_namespace(Q1,Q2)
+    xp = get_array_namespace(Q1, Q2)
     Q1 = xp.asarray(Q1)
     Q2 = xp.asarray(Q2)
 
@@ -162,10 +164,10 @@ def batch_q_conj(Q):
     """
     # Q = np.asarray(Q)
     # out = np.empty_like(Q)
-    xp=xarray.array_namespace(Q)
+    xp = xarray.array_namespace(Q)
     Q = xp.asarray(Q)
     out = xp.empty_like(Q)
-    
+
     out[..., 0] = Q[..., 0]
     out[..., 1:] = -Q[..., 1:]
     return out
