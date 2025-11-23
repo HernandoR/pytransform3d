@@ -3,6 +3,7 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace, check_array_type
 from ._angle import quaternion_from_angle
 from ._axis_angle import (
     norm_axis_angle,
@@ -33,7 +34,9 @@ def check_quaternion(q, unit=True):
     ValueError
         If input is invalid
     """
-    q = np.asarray(q, dtype=np.float64)
+    q = check_array_type(q, "q")
+    xp = get_array_namespace(q)
+    q = xp.asarray(q, dtype=xp.float64)
     if q.ndim != 1 or q.shape[0] != 4:
         raise ValueError(
             "Expected quaternion with shape (4,), got "
@@ -65,7 +68,9 @@ def check_quaternions(Q, unit=True):
     ValueError
         If input is invalid
     """
-    Q_checked = np.asarray(Q, dtype=np.float64)
+    Q = check_array_type(Q, "Q")
+    xp = get_array_namespace(Q)
+    Q_checked = xp.asarray(Q, dtype=xp.float64)
     if Q_checked.ndim != 2 or Q_checked.shape[1] != 4:
         raise ValueError(
             "Expected quaternion array with shape (n_steps, 4), got "
@@ -100,7 +105,9 @@ def quaternion_requires_renormalization(q, tolerance=1e-6):
     --------
     check_quaternion : Normalizes quaternion.
     """
-    return abs(np.linalg.norm(q) - 1.0) > tolerance
+    q = check_array_type(q, "q")
+    xp = get_array_namespace(q)
+    return abs(xp.linalg.vector_norm(q) - 1.0) > tolerance
 
 
 def quaternion_double(q):
@@ -172,7 +179,8 @@ def pick_closest_quaternion_impl(quaternion, target_quaternion):
     closest_quaternion : array, shape (4,)
         Quaternion that is closest (Euclidean norm) to the target quaternion.
     """
-    if np.linalg.norm(-quaternion - target_quaternion) < np.linalg.norm(
+    xp = get_array_namespace(quaternion, target_quaternion)
+    if xp.linalg.vector_norm(-quaternion - target_quaternion) < xp.linalg.vector_norm(
         quaternion - target_quaternion
     ):
         return -quaternion
