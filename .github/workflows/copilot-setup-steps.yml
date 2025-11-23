@@ -43,6 +43,7 @@ jobs:
 
       - name: install dependencies
         run: |
+          apt install graphviz -y
           uv sync --extra all --frozen
 
       - name: clean up cache

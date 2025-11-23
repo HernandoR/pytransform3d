@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._constants import unitz, eps
 
 
@@ -40,11 +41,13 @@ def norm_vector(v):
     u : array, shape (n,)
         nd unit vector with norm 1 or the zero vector
     """
-    norm = np.linalg.norm(v)
+    v = check_array_type(v, "v")
+    xp = get_array_namespace(v)
+    norm = xp.linalg.vector_norm(v)
     if norm == 0.0:
         return v
 
-    return np.asarray(v) / norm
+    return xp.asarray(v) / norm
 
 
 def perpendicular_to_vectors(a, b):
@@ -63,7 +66,13 @@ def perpendicular_to_vectors(a, b):
     c : array, shape (3,)
         3d vector that is orthogonal to a and b
     """
-    return np.cross(a, b)
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
+    # Use linalg.cross if available (for better torch compatibility)
+    if hasattr(xp.linalg, 'cross'):
+        return xp.linalg.cross(a, b)
+    return xp.cross(a, b)
 
 
 def perpendicular_to_vector(a):
@@ -84,13 +93,15 @@ def perpendicular_to_vector(a):
         A 3d vector that is orthogonal to a. It does not necessarily have
         unit length.
     """
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
     if abs(a[2]) < eps:
-        return np.copy(unitz)
+        return xp.asarray(unitz, copy=True)
     # Now that we solved the problem for [x, y, 0], we can solve it for all
     # other vectors by restricting solutions to [1, 0, z] and find z.
     # The dot product of orthogonal vectors is 0, thus
     # a[0] * 1 + a[1] * 0 + a[2] * z == 0 or -a[0] / a[2] = z
-    return np.array([1.0, 0.0, -a[0] / a[2]])
+    return xp.asarray([1.0, 0.0, -a[0] / a[2]])
 
 
 def angle_between_vectors(a, b, fast=False):
@@ -112,15 +123,23 @@ def angle_between_vectors(a, b, fast=False):
     angle : float
         Angle between a and b
     """
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
     if len(a) != 3 or fast:
-        return np.arccos(
-            np.clip(
-                np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)),
+        return xp.acos(
+            xp.clip(
+                xp.sum(a * b) / (xp.linalg.vector_norm(a) * xp.linalg.vector_norm(b)),
                 -1.0,
                 1.0,
             )
         )
-    return np.arctan2(np.linalg.norm(np.cross(a, b)), np.dot(a, b))
+    # Use linalg.cross if available (for better torch compatibility)
+    if hasattr(xp.linalg, 'cross'):
+        cross_prod = xp.linalg.cross(a, b)
+    else:
+        cross_prod = xp.cross(a, b)
+    return xp.atan2(xp.linalg.vector_norm(cross_prod), xp.sum(a * b))
 
 
 def vector_projection(a, b):
@@ -139,10 +158,13 @@ def vector_projection(a, b):
     a_on_b : array, shape (3,)
         Vector a
     """
-    b_norm_squared = np.dot(b, b)
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
+    b_norm_squared = xp.sum(b * b)
     if b_norm_squared == 0.0:
-        return np.zeros(3)
-    return np.dot(a, b) * b / b_norm_squared
+        return xp.zeros(3)
+    return xp.sum(a * b) * b / b_norm_squared
 
 
 def plane_basis_from_normal(plane_normal):
@@ -169,16 +191,18 @@ def plane_basis_from_normal(plane_normal):
     y_axis : array, shape (3,)
         y-axis of the plane.
     """
+    plane_normal = check_array_type(plane_normal, "plane_normal")
+    xp = get_array_namespace(plane_normal)
     if abs(plane_normal[0]) >= abs(plane_normal[1]):
         # x or z is the largest magnitude component, swap them
         length = math.sqrt(
             plane_normal[0] * plane_normal[0]
             + plane_normal[2] * plane_normal[2]
         )
-        x_axis = np.array(
+        x_axis = xp.asarray(
             [-plane_normal[2] / length, 0.0, plane_normal[0] / length]
         )
-        y_axis = np.array(
+        y_axis = xp.asarray(
             [
                 plane_normal[1] * x_axis[2],
                 plane_normal[2] * x_axis[0] - plane_normal[0] * x_axis[2],
@@ -191,10 +215,10 @@ def plane_basis_from_normal(plane_normal):
             plane_normal[1] * plane_normal[1]
             + plane_normal[2] * plane_normal[2]
         )
-        x_axis = np.array(
+        x_axis = xp.asarray(
             [0.0, plane_normal[2] / length, -plane_normal[1] / length]
         )
-        y_axis = np.array(
+        y_axis = xp.asarray(
             [
                 plane_normal[1] * x_axis[2] - plane_normal[2] * x_axis[1],
                 -plane_normal[0] * x_axis[2],

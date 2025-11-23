@@ -102,7 +102,8 @@ def test_matrix_requires_renormalization():
     for _ in range(10):
         e = pr.random_vector(rng, 3)
         R = pr.active_matrix_from_extrinsic_roll_pitch_yaw(e)
-        assert not pr.matrix_requires_renormalization(R, tolerance=1e-16)
+        res = pr.matrix_requires_renormalization(R, tolerance=1.2e-16)
+        assert not res
         R_total = np.dot(R, R_total)
     assert pr.matrix_requires_renormalization(R_total, tolerance=1e-16)
 

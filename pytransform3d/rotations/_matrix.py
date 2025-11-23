@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace, check_array_type
 from ._axis_angle import compact_axis_angle
 from ._utils import norm_vector, perpendicular_to_vectors, vector_projection
 
@@ -55,23 +56,26 @@ def check_matrix(R, tolerance=1e-6, strict_check=True):
         A more expensive orthonormalization method that spreads the error more
         evenly between the basis vectors.
     """
-    R = np.asarray(R, dtype=np.float64)
+    R = check_array_type(R, "R")
+    xp = get_array_namespace(R)
+    R = xp.asarray(R, dtype=xp.float64)
     if R.ndim != 2 or R.shape[0] != 3 or R.shape[1] != 3:
         raise ValueError(
             "Expected rotation matrix with shape (3, 3), got "
             "array-like object with shape %s" % (R.shape,)
         )
-    RRT = np.dot(R, R.T)
-    if not np.allclose(RRT, np.eye(3), atol=tolerance):
+    RRT = xp.matmul(R, xp.matrix_transpose(R))
+    eye = xp.asarray(xp.eye(3), dtype=xp.float64)
+    if not xp.allclose(RRT, eye, atol=tolerance):
         error_msg = (
             "Expected rotation matrix, but it failed the test "
-            "for inversion by transposition. np.dot(R, R.T) "
+            "for inversion by transposition. matmul(R, R.T) "
             "gives %r" % RRT
         )
         if strict_check:
             raise ValueError(error_msg)
         warnings.warn(error_msg, UserWarning, stacklevel=2)
-    R_det = np.linalg.det(R)
+    R_det = xp.linalg.det(R)
     if R_det < 0.0:
         error_msg = (
             "Expected rotation matrix, but it failed the test "
@@ -109,9 +113,12 @@ def matrix_requires_renormalization(R, tolerance=1e-6):
         A more expensive orthonormalization method that spreads the error more
         evenly between the basis vectors.
     """
-    R = np.asarray(R, dtype=float)
-    RRT = np.dot(R, R.T)
-    return not np.allclose(RRT, np.eye(3), atol=tolerance)
+    R = check_array_type(R, "R")
+    xp = get_array_namespace(R)
+    R = xp.asarray(R, dtype=float)
+    RRT = xp.matmul(R, xp.matrix_transpose(R))
+    eye = xp.asarray(xp.eye(3), dtype=R.dtype)
+    return not xp.allclose(RRT, eye, atol=tolerance)
 
 
 def norm_matrix(R):
@@ -160,12 +167,23 @@ def norm_matrix(R):
         A more expensive orthonormalization method that spreads the error more
         evenly between the basis vectors.
     """
-    R = np.asarray(R)
+    R = check_array_type(R, "R")
+    xp = get_array_namespace(R)
+    R = xp.asarray(R)
     c2 = R[:, 1]
     c3 = norm_vector(R[:, 2])
-    c1 = norm_vector(np.cross(c2, c3))
-    c2 = norm_vector(np.cross(c3, c1))
-    return np.column_stack((c1, c2, c3))
+    # Use linalg.cross if available
+    if hasattr(xp.linalg, 'cross'):
+        c1_unnorm = xp.linalg.cross(c2, c3)
+        c1 = norm_vector(c1_unnorm)
+        c2_unnorm = xp.linalg.cross(c3, c1)
+    else:
+        c1_unnorm = xp.cross(c2, c3)
+        c1 = norm_vector(c1_unnorm)
+        c2_unnorm = xp.cross(c3, c1)
+    c2 = norm_vector(c2_unnorm)
+    # Stack columns
+    return xp.stack([c1, c2, c3], axis=1)
 
 
 def assert_rotation_matrix(R, *args, **kwargs):
@@ -221,13 +239,17 @@ def matrix_from_two_vectors(a, b):
     ValueError
         If vectors are parallel or one of them is the zero vector
     """
-    if np.linalg.norm(a) == 0:
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
+    
+    if xp.linalg.vector_norm(a) == 0:
         raise ValueError("a must not be the zero vector.")
-    if np.linalg.norm(b) == 0:
+    if xp.linalg.vector_norm(b) == 0:
         raise ValueError("b must not be the zero vector.")
 
     c = perpendicular_to_vectors(a, b)
-    if np.linalg.norm(c) == 0:
+    if xp.linalg.vector_norm(c) == 0:
         raise ValueError("a and b must not be parallel.")
 
     a = norm_vector(a)
@@ -238,7 +260,7 @@ def matrix_from_two_vectors(a, b):
 
     c = norm_vector(c)
 
-    return np.column_stack((a, b, c))
+    return xp.stack([a, b, c], axis=1)
 
 
 def quaternion_from_matrix(R, strict_check=True):
@@ -266,32 +288,33 @@ def quaternion_from_matrix(R, strict_check=True):
         Unit quaternion to represent rotation: (w, x, y, z)
     """
     R = check_matrix(R, strict_check=strict_check)
-    q = np.empty(4)
+    xp = get_array_namespace(R)
+    q = xp.empty(4, dtype=R.dtype)
 
     # Source:
     # http://www.euclideanspace.com/maths/geometry/rotations/conversions
-    trace = np.trace(R)
+    trace = xp.trace(R)
     if trace > 0.0:
-        sqrt_trace = np.sqrt(1.0 + trace)
+        sqrt_trace = xp.sqrt(1.0 + trace)
         q[0] = 0.5 * sqrt_trace
         q[1] = 0.5 / sqrt_trace * (R[2, 1] - R[1, 2])
         q[2] = 0.5 / sqrt_trace * (R[0, 2] - R[2, 0])
         q[3] = 0.5 / sqrt_trace * (R[1, 0] - R[0, 1])
     else:
         if R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-            sqrt_trace = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2])
+            sqrt_trace = xp.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2])
             q[0] = 0.5 / sqrt_trace * (R[2, 1] - R[1, 2])
             q[1] = 0.5 * sqrt_trace
             q[2] = 0.5 / sqrt_trace * (R[1, 0] + R[0, 1])
             q[3] = 0.5 / sqrt_trace * (R[0, 2] + R[2, 0])
         elif R[1, 1] > R[2, 2]:
-            sqrt_trace = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2])
+            sqrt_trace = xp.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2])
             q[0] = 0.5 / sqrt_trace * (R[0, 2] - R[2, 0])
             q[1] = 0.5 / sqrt_trace * (R[1, 0] + R[0, 1])
             q[2] = 0.5 * sqrt_trace
             q[3] = 0.5 / sqrt_trace * (R[2, 1] + R[1, 2])
         else:
-            sqrt_trace = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1])
+            sqrt_trace = xp.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1])
             q[0] = 0.5 / sqrt_trace * (R[1, 0] - R[0, 1])
             q[1] = 0.5 / sqrt_trace * (R[0, 2] + R[2, 0])
             q[2] = 0.5 / sqrt_trace * (R[2, 1] + R[1, 2])
@@ -327,23 +350,30 @@ def axis_angle_from_matrix(R, strict_check=True, check=True):
     """
     if check:
         R = check_matrix(R, strict_check=strict_check)
-    cos_angle = (np.trace(R) - 1.0) / 2.0
-    angle = np.arccos(min(max(-1.0, cos_angle), 1.0))
+    else:
+        R = check_array_type(R, "R")
+    xp = get_array_namespace(R)
+    
+    cos_angle = (xp.trace(R) - 1.0) / 2.0
+    # Convert to scalar for min/max, then back to array type
+    cos_angle_float = float(cos_angle)
+    angle_float = float(xp.acos(xp.asarray(min(max(-1.0, cos_angle_float), 1.0))))
+    angle = xp.asarray(angle_float)
 
-    if angle == 0.0:  # R == np.eye(3)
-        return np.array([1.0, 0.0, 0.0, 0.0])
+    if angle_float == 0.0:  # R == eye(3)
+        return xp.asarray([1.0, 0.0, 0.0, 0.0], dtype=R.dtype)
 
-    a = np.empty(4)
+    a = xp.empty(4, dtype=R.dtype)
 
     # We can usually determine the rotation axis by inverting Rodrigues'
     # formula. Subtracting opposing off-diagonal elements gives us
     # 2 * sin(angle) * e,
     # where e is the normalized rotation axis.
-    axis_unnormalized = np.array(
+    axis_unnormalized = xp.asarray(
         [R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]
     )
 
-    if abs(angle - np.pi) < 1e-4:  # np.trace(R) close to -1
+    if abs(angle_float - float(xp.pi)) < 1e-4:  # trace(R) close to -1
         # The threshold 1e-4 is a result from this discussion:
         # https://github.com/dfki-ric/pytransform3d/issues/43
         # The standard formula becomes numerically unstable, however,
@@ -354,18 +384,18 @@ def axis_angle_from_matrix(R, strict_check=True, check=True):
         # the rotation axis correctly.
 
         # In case of floating point inaccuracies:
-        R_diag = np.clip(np.diag(R), -1.0, 1.0)
+        R_diag = xp.clip(xp.asarray([R[0, 0], R[1, 1], R[2, 2]]), -1.0, 1.0)
 
         eeT_diag = 0.5 * (R_diag + 1.0)
-        signs = np.sign(axis_unnormalized)
-        signs[signs == 0.0] = 1.0
-        a[:3] = np.sqrt(eeT_diag) * signs
+        signs = xp.sign(axis_unnormalized)
+        signs = xp.where(signs == 0.0, 1.0, signs)
+        a[:3] = xp.sqrt(eeT_diag) * signs
     else:
         a[:3] = axis_unnormalized
-        # The norm of axis_unnormalized is 2.0 * np.sin(angle), that is, we
-        # could normalize with a[:3] = a[:3] / (2.0 * np.sin(angle)),
+        # The norm of axis_unnormalized is 2.0 * sin(angle), that is, we
+        # could normalize with a[:3] = a[:3] / (2.0 * sin(angle)),
         # but the following is much more precise for angles close to 0 or pi:
-    a[:3] /= np.linalg.norm(a[:3])
+    a[:3] /= xp.linalg.vector_norm(a[:3])
 
     a[3] = angle
     return a

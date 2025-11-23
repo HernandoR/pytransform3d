@@ -3,6 +3,7 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace, check_array_type
 from ._angle import norm_angle
 from ._axis_angle import mrp_from_axis_angle
 from ._constants import two_pi, eps
@@ -26,7 +27,9 @@ def check_mrp(mrp):
     ValueError
         If input is invalid
     """
-    mrp = np.asarray(mrp)
+    mrp = check_array_type(mrp, "mrp")
+    xp = get_array_namespace(mrp)
+    mrp = xp.asarray(mrp)
     if mrp.ndim != 1 or mrp.shape[0] != 3:
         raise ValueError(
             "Expected modified Rodrigues parameters with shape (3,), got "
@@ -76,10 +79,11 @@ def mrp_near_singularity(mrp, tolerance=1e-6):
     near_singularity : bool
         MRPs are near singularity.
     """
-    check_mrp(mrp)
-    mrp_norm = np.linalg.norm(mrp)
-    angle = np.arctan(mrp_norm) * 4.0
-    return abs(angle - two_pi) < tolerance
+    mrp = check_mrp(mrp)
+    xp = get_array_namespace(mrp)
+    mrp_norm = xp.linalg.vector_norm(mrp)
+    angle = xp.atan(mrp_norm) * 4.0
+    return abs(float(angle) - two_pi) < tolerance
 
 
 def mrp_double(mrp):
@@ -111,7 +115,8 @@ def mrp_double(mrp):
        http://malcolmdshuster.com/Pub_1993h_J_Repsurv_scan.pdf
     """
     mrp = check_mrp(mrp)
-    norm = np.dot(mrp, mrp)
+    xp = get_array_namespace(mrp)
+    norm = xp.sum(mrp * mrp)
     if norm == 0.0:
         return mrp
     return mrp / -norm

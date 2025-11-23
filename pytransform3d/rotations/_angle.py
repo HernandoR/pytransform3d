@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._constants import two_pi
 
 
@@ -28,8 +29,10 @@ def norm_angle(a):
     a_norm : float or array, shape (n,)
         Normalized angle(s) in radians
     """
-    a = np.asarray(a, dtype=np.float64)
-    return a - (np.ceil((a + np.pi) / two_pi) - 1.0) * two_pi
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
+    a = xp.asarray(a, dtype=xp.float64)
+    return a - (xp.ceil((a + xp.pi) / two_pi) - 1.0) * two_pi
 
 
 def passive_matrix_from_angle(basis, angle):
@@ -53,15 +56,17 @@ def passive_matrix_from_angle(basis, angle):
     ValueError
         If basis is invalid
     """
-    c = np.cos(angle)
-    s = np.sin(angle)
+    angle = check_array_type(angle, "angle")
+    xp = get_array_namespace(angle)
+    c = xp.cos(angle)
+    s = xp.sin(angle)
 
     if basis == 0:
-        R = np.array([[1.0, 0.0, 0.0], [0.0, c, s], [0.0, -s, c]])
+        R = xp.asarray([[1.0, 0.0, 0.0], [0.0, c, s], [0.0, -s, c]])
     elif basis == 1:
-        R = np.array([[c, 0.0, -s], [0.0, 1.0, 0.0], [s, 0.0, c]])
+        R = xp.asarray([[c, 0.0, -s], [0.0, 1.0, 0.0], [s, 0.0, c]])
     elif basis == 2:
-        R = np.array([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
+        R = xp.asarray([[c, s, 0.0], [-s, c, 0.0], [0.0, 0.0, 1.0]])
     else:
         raise ValueError("Basis must be in [0, 1, 2]")
 
@@ -125,15 +130,17 @@ def active_matrix_from_angle(basis, angle):
     ValueError
         If basis is invalid
     """
-    c = np.cos(angle)
-    s = np.sin(angle)
+    angle = check_array_type(angle, "angle")
+    xp = get_array_namespace(angle)
+    c = xp.cos(angle)
+    s = xp.sin(angle)
 
     if basis == 0:
-        R = np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+        R = xp.asarray([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
     elif basis == 1:
-        R = np.array([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
+        R = xp.asarray([[c, 0.0, s], [0.0, 1.0, 0.0], [-s, 0.0, c]])
     elif basis == 2:
-        R = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+        R = xp.asarray([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
     else:
         raise ValueError("Basis must be in [0, 1, 2]")
 
@@ -161,16 +168,18 @@ def quaternion_from_angle(basis, angle):
     ValueError
         If basis is invalid
     """
+    angle = check_array_type(angle, "angle")
+    xp = get_array_namespace(angle)
     half_angle = 0.5 * angle
-    c = math.cos(half_angle)
-    s = math.sin(half_angle)
+    c = math.cos(half_angle) if isinstance(half_angle, (int, float)) else xp.cos(half_angle)
+    s = math.sin(half_angle) if isinstance(half_angle, (int, float)) else xp.sin(half_angle)
 
     if basis == 0:
-        q = np.array([c, s, 0.0, 0.0])
+        q = xp.asarray([c, s, 0.0, 0.0])
     elif basis == 1:
-        q = np.array([c, 0.0, s, 0.0])
+        q = xp.asarray([c, 0.0, s, 0.0])
     elif basis == 2:
-        q = np.array([c, 0.0, 0.0, s])
+        q = xp.asarray([c, 0.0, 0.0, s])
     else:
         raise ValueError("Basis must be in [0, 1, 2]")
 

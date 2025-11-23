@@ -5,6 +5,7 @@ import math
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace, check_array_type
 from ._angle import norm_angle, active_matrix_from_angle
 from ._constants import half_pi, unitx, unity, unitz, eps
 from ._matrix import check_matrix
@@ -41,20 +42,23 @@ def norm_euler(e, i, j, k):
     check_axis_index("j", j)
     check_axis_index("k", k)
 
+    e = check_array_type(e, "e")
+    xp = get_array_namespace(e)
+    
     alpha, beta, gamma = norm_angle(e)
 
     proper_euler = i == k
     if proper_euler:
         if beta < 0.0:
-            alpha += np.pi
+            alpha += xp.pi
             beta *= -1.0
-            gamma -= np.pi
+            gamma -= xp.pi
     elif abs(beta) > half_pi:
-        alpha += np.pi
-        beta = np.pi - beta
-        gamma -= np.pi
+        alpha += xp.pi
+        beta = xp.pi - beta
+        gamma -= xp.pi
 
-    return norm_angle([alpha, beta, gamma])
+    return norm_angle(xp.asarray([alpha, beta, gamma]))
 
 
 def euler_near_gimbal_lock(e, i, j, k, tolerance=1e-6):
@@ -83,10 +87,11 @@ def euler_near_gimbal_lock(e, i, j, k, tolerance=1e-6):
         Indicates if the Euler angles are near the gimbal lock singularity.
     """
     e = norm_euler(e, i, j, k)
+    xp = get_array_namespace(e)
     beta = e[1]
     proper_euler = i == k
     if proper_euler:
-        return abs(beta) < tolerance or abs(beta - np.pi) < tolerance
+        return abs(beta) < tolerance or abs(beta - float(xp.pi)) < tolerance
     else:
         return abs(abs(beta) - half_pi) < tolerance
 
@@ -158,15 +163,19 @@ def matrix_from_euler(e, i, j, k, extrinsic):
     check_axis_index("j", j)
     check_axis_index("k", k)
 
+    e = check_array_type(e, "e")
+    xp = get_array_namespace(e)
+    
     alpha, beta, gamma = e
     if not extrinsic:
         i, k = k, i
         alpha, gamma = gamma, alpha
-    R = (
-        active_matrix_from_angle(k, gamma)
-        .dot(active_matrix_from_angle(j, beta))
-        .dot(active_matrix_from_angle(i, alpha))
-    )
+    
+    # Use matmul for array API compatibility
+    R1 = active_matrix_from_angle(i, alpha)
+    R2 = active_matrix_from_angle(j, beta)
+    R3 = active_matrix_from_angle(k, gamma)
+    R = xp.matmul(xp.matmul(R3, R2), R1)
     return R
 
 

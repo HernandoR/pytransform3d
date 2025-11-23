@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
+
 
 def norm_vectors(V, out=None):
     """Normalize vectors.
@@ -19,14 +21,17 @@ def norm_vectors(V, out=None):
     V_unit : array, shape (..., n)
         nd unit vectors with norm 1 or zero vectors
     """
-    V = np.asarray(V)
-    norms = np.linalg.norm(V, axis=-1)
+    V = check_array_type(V, "V")
+    xp = get_array_namespace(V)
+    V = xp.asarray(V)
+    norms = xp.linalg.vector_norm(V, axis=-1)
     if out is None:
-        out = np.empty_like(V)
-    # Avoid division by zero with np.maximum(..., smallest positive float).
+        out = xp.empty_like(V)
+    # Avoid division by zero with maximum(..., smallest positive float).
     # The norm is zero only when the vector is zero so this case does not
     # require further processing.
-    out[...] = V / np.maximum(norms[..., np.newaxis], np.finfo(float).tiny)
+    tiny = xp.asarray(np.finfo(float).tiny)
+    out[...] = V / xp.maximum(norms[..., xp.newaxis], tiny)
     return out
 
 
@@ -46,15 +51,17 @@ def angles_between_vectors(A, B):
     angles : array, shape (...)
         Angles between pairs of vectors from A and B
     """
-    A = np.asarray(A)
-    B = np.asarray(B)
+    A = check_array_type(A, "A")
+    B = check_array_type(B, "B")
+    xp = get_array_namespace(A, B)
+    A = xp.asarray(A)
+    B = xp.asarray(B)
     n_dims = A.shape[-1]
-    A_norms = np.linalg.norm(A, axis=-1)
-    B_norms = np.linalg.norm(B, axis=-1)
-    AdotB = np.einsum(
-        "ni,ni->n", A.reshape(-1, n_dims), B.reshape(-1, n_dims)
-    ).reshape(A.shape[:-1])
-    return np.arccos(np.clip(AdotB / (A_norms * B_norms), -1.0, 1.0))
+    A_norms = xp.linalg.vector_norm(A, axis=-1)
+    B_norms = xp.linalg.vector_norm(B, axis=-1)
+    # Use element-wise multiplication and sum for dot product
+    AdotB = xp.sum(A * B, axis=-1)
+    return xp.acos(xp.clip(AdotB / (A_norms * B_norms), -1.0, 1.0))
 
 
 def cross_product_matrices(V):
@@ -80,10 +87,12 @@ def cross_product_matrices(V):
     V_cross_product_matrices : array, shape (..., 3, 3)
         Cross-product matrices of V
     """
-    V = np.asarray(V)
+    V = check_array_type(V, "V")
+    xp = get_array_namespace(V)
+    V = xp.asarray(V)
 
     instances_shape = V.shape[:-1]
-    V_matrices = np.empty(instances_shape + (3, 3))
+    V_matrices = xp.empty(instances_shape + (3, 3))
 
     V_matrices[..., 0, 0] = 0.0
     V_matrices[..., 0, 1] = -V[..., 2]
