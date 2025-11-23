@@ -1,6 +1,7 @@
 """Conversions between coordinate systems to represent positions."""
 
 import numpy as np
+from .array_api import get_array_namespace
 
 
 def cartesian_from_cylindrical(p):
@@ -18,9 +19,10 @@ def cartesian_from_cylindrical(p):
         Cartesian coordinates (x, y, z)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    q[..., 0] = p[..., 0] * np.cos(p[..., 1])
-    q[..., 1] = p[..., 0] * np.sin(p[..., 1])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    q[..., 0] = p[..., 0] * xp.cos(p[..., 1])
+    q[..., 1] = p[..., 0] * xp.sin(p[..., 1])
     q[..., 2] = p[..., 2]
     return q
 
@@ -40,11 +42,12 @@ def cartesian_from_spherical(p):
         Cartesian coordinates (x, y, z)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    r_sin_theta = p[..., 0] * np.sin(p[..., 1])
-    q[..., 0] = np.cos(p[..., 2]) * r_sin_theta
-    q[..., 1] = np.sin(p[..., 2]) * r_sin_theta
-    q[..., 2] = p[..., 0] * np.cos(p[..., 1])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    r_sin_theta = p[..., 0] * xp.sin(p[..., 1])
+    q[..., 0] = xp.cos(p[..., 2]) * r_sin_theta
+    q[..., 1] = xp.sin(p[..., 2]) * r_sin_theta
+    q[..., 2] = p[..., 0] * xp.cos(p[..., 1])
     return q
 
 
@@ -63,9 +66,10 @@ def cylindrical_from_cartesian(p):
         (-pi >= phi >= pi), and axial coordinate / height (z)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    q[..., 0] = np.linalg.norm(p[..., :2], axis=-1)
-    q[..., 1] = np.arctan2(p[..., 1], p[..., 0])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    q[..., 0] = xp.sqrt(xp.sum(p[..., :2] ** 2, axis=-1))
+    q[..., 1] = xp.atan2(p[..., 1], p[..., 0])
     q[..., 2] = p[..., 2]
     return q
 
@@ -86,10 +90,11 @@ def cylindrical_from_spherical(p):
         (phi), and axial coordinate / height (z)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    q[..., 0] = p[..., 0] * np.sin(p[..., 1])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    q[..., 0] = p[..., 0] * xp.sin(p[..., 1])
     q[..., 1] = p[..., 2]
-    q[..., 2] = p[..., 0] * np.cos(p[..., 1])
+    q[..., 2] = p[..., 0] * xp.cos(p[..., 1])
     return q
 
 
@@ -108,10 +113,11 @@ def spherical_from_cartesian(p):
         elevation (0 <= theta <= pi), and azimuth (-pi <= phi <= pi)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    q[..., 0] = np.linalg.norm(p, axis=-1)
-    q[..., 1] = np.arctan2(np.linalg.norm(p[..., :2], axis=-1), p[..., 2])
-    q[..., 2] = np.arctan2(p[..., 1], p[..., 0])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    q[..., 0] = xp.sqrt(xp.sum(p**2, axis=-1))
+    q[..., 1] = xp.atan2(xp.sqrt(xp.sum(p[..., :2] ** 2, axis=-1)), p[..., 2])
+    q[..., 2] = xp.atan2(p[..., 1], p[..., 0])
     return q
 
 
@@ -131,8 +137,9 @@ def spherical_from_cylindrical(p):
         elevation (theta), and azimuth (phi)
     """
     p = np.asarray(p, dtype=float)
-    q = np.empty_like(p)
-    q[..., 0] = np.linalg.norm(p[..., (0, 2)], axis=-1)
-    q[..., 1] = np.arctan2(p[..., 0], p[..., 2])
+    xp = get_array_namespace(p)
+    q = xp.empty_like(p)
+    q[..., 0] = xp.sqrt(xp.sum(p[..., (0, 2)] ** 2, axis=-1))
+    q[..., 1] = xp.atan2(p[..., 0], p[..., 2])
     q[..., 2] = p[..., 1]
     return q

@@ -7,6 +7,7 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.sparse import csgraph
 
+from ..array_api import get_array_namespace
 from ..transformations import concat, invert_transform
 
 
@@ -58,7 +59,12 @@ class TransformGraphBase(abc.ABC):
 
     def _path_transform(self, path):
         """Convert sequence of node names to rigid transformation."""
-        A2B = np.eye(4)
+        if len(path) == 1:
+            # Identity transform for same node
+            return np.eye(4)
+        first_transform = self.get_transform(path[0], path[1])
+        xp = get_array_namespace(first_transform)
+        A2B = xp.eye(4, dtype=first_transform.dtype)
         for from_f, to_f in zip(path[:-1], path[1:]):
             A2B = concat(
                 A2B,

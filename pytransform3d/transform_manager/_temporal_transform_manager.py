@@ -4,6 +4,7 @@ import abc
 
 import numpy as np
 
+from ..array_api import get_array_namespace
 from ._transform_graph_base import TransformGraphBase
 from ..batch_rotations import norm_vectors
 from ..trajectories import (
@@ -188,7 +189,10 @@ class NumpyTimeseriesTransform(TimeVaryingTransform):
         # between the preceeding and succeeding sample, since ScLERP works with
         # relative times t in [0, 1]. If query time equals a time sample
         # exactly, 0.0 is set.
-        rel_times_between_samples = np.zeros_like(query_time_arr, dtype=float)
+        xp = get_array_namespace(query_time_arr)
+        rel_times_between_samples = xp.zeros(
+            query_time_arr.shape, dtype=xp.float64
+        )
         interpolation_case = times_prev != times_next
         rel_times_between_samples[interpolation_case] = (
             query_time_arr[interpolation_case] - times_prev[interpolation_case]
@@ -345,7 +349,20 @@ class TemporalTransformManager(TransformGraphBase):
 
     def _path_transform(self, path):
         """Convert sequence of node names to rigid transformation."""
-        A2B = np.eye(4)
+        if len(path) == 1:
+            # Identity transform for same node
+            return np.eye(4)
+        # Get first transform to determine backend and dtype
+        if self._transform_available((path[0], path[1])):
+            first_transform = self._get_transform((path[0], path[1]))
+        elif self._transform_available((path[1], path[0])):
+            first_transform = self._get_transform((path[1], path[0]))
+        else:
+            # Fallback to numpy if we can't get a transform yet
+            first_transform = np.eye(4)
+
+        xp = get_array_namespace(first_transform)
+        A2B = xp.eye(4, dtype=first_transform.dtype)
         for from_f, to_f in zip(path[:-1], path[1:]):
             A2B = concat_dynamic(A2B, self.get_transform(from_f, to_f))
         return A2B

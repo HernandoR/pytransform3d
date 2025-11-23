@@ -6,6 +6,7 @@ See :doc:`user_guide/camera` for more information.
 import numpy as np
 
 from .transformations import invert_transform, transform, check_transform
+from .array_api import get_array_namespace
 
 
 def make_world_grid(
@@ -62,7 +63,8 @@ def make_world_grid(
             for x in np.linspace(xlim[0], xlim[1], n_lines)
         ]
     )
-    return np.vstack((world_grid_x, world_grid_y))
+    xp = get_array_namespace(world_grid_x, world_grid_y)
+    return xp.concat([world_grid_x, world_grid_y], axis=0)
 
 
 def make_world_line(p1, p2, n_points):
@@ -131,13 +133,16 @@ def cam2sensor(P_cam, focal_length, kappa=0.0):
     if focal_length <= 0.0:
         raise ValueError("Focal length must be greater than 0.")
 
-    P_sensor = np.empty((n_points, 2))
+    xp = get_array_namespace(P_cam)
+    P_sensor = xp.empty((n_points, 2), dtype=P_cam.dtype)
     ahead = P_cam[:, 2] > 0.0
-    P_sensor[ahead] = P_cam[ahead][:, :2] / P_cam[ahead][:, 2, np.newaxis]
-    behind = np.logical_not(ahead)
+    P_sensor[ahead] = P_cam[ahead][:, :2] / P_cam[ahead][:, 2, None]
+    behind = ~ahead
 
     for n in range(P_sensor.shape[0]):
-        P_sensor[n] *= 1.0 / (1.0 + kappa * np.linalg.norm(P_sensor[n]) ** 2)
+        P_sensor[n] *= 1.0 / (
+            1.0 + kappa * xp.sqrt(xp.sum(P_sensor[n] ** 2)) ** 2
+        )
     P_sensor *= focal_length
     P_sensor[behind] = np.nan
     return P_sensor

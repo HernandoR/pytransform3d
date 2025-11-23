@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace
 from ..rotations import (
     matrix_requires_renormalization,
     check_matrix,
@@ -47,7 +48,13 @@ def check_transform(A2B, strict_check=True):
             "shape (4, 4), got array-like object with shape %s" % (A2B.shape,)
         )
     check_matrix(A2B[:3, :3], strict_check=strict_check)
-    if not np.allclose(A2B[3], np.array([0.0, 0.0, 0.0, 1.0])):
+    xp = get_array_namespace(A2B)
+    expected = xp.asarray(
+        [0.0, 0.0, 0.0, 1.0],
+        dtype=A2B.dtype,
+        device=getattr(A2B, "device", None),
+    )
+    if not xp.all(xp.abs(A2B[3] - expected) < 1e-9):
         error_msg = (
             "Excpected homogeneous transformation matrix with "
             "[0, 0, 0, 1] at the bottom, got %r" % A2B
@@ -141,7 +148,14 @@ def transform_from(R, p, strict_check=True):
     A2B : array, shape (4, 4)
         Transform from frame A to frame B
     """
-    A2B = rotate_transform(np.eye(4), R, strict_check=strict_check, check=False)
+    R = np.asarray(R)
+    xp = get_array_namespace(R)
+    A2B = rotate_transform(
+        xp.eye(4, dtype=R.dtype, device=getattr(R, "device", None)),
+        R,
+        strict_check=strict_check,
+        check=False,
+    )
     A2B = translate_transform(A2B, p, strict_check=strict_check, check=False)
     return A2B
 
@@ -227,7 +241,8 @@ def pq_from_transform(A2B, strict_check=True):
         Position and orientation quaternion: (x, y, z, qw, qx, qy, qz)
     """
     A2B = check_transform(A2B, strict_check=strict_check)
-    return np.hstack((A2B[:3, 3], quaternion_from_matrix(A2B[:3, :3])))
+    xp = get_array_namespace(A2B)
+    return xp.concat([A2B[:3, 3], quaternion_from_matrix(A2B[:3, :3])], axis=0)
 
 
 def transform_log_from_transform(A2B, strict_check=True):
@@ -286,24 +301,28 @@ def transform_log_from_transform(A2B, strict_check=True):
         Matrix logarithm of transformation matrix: [S] * theta.
     """
     A2B = check_transform(A2B, strict_check=strict_check)
+    xp = get_array_namespace(A2B)
 
     R = A2B[:3, :3]
     p = A2B[:3, 3]
 
-    transform_log = np.zeros((4, 4))
+    transform_log = xp.zeros(
+        (4, 4), dtype=A2B.dtype, device=getattr(A2B, "device", None)
+    )
 
-    if np.linalg.norm(np.eye(3) - R) < np.finfo(float).eps:
+    eye3 = xp.eye(3, dtype=R.dtype, device=getattr(R, "device", None))
+    if xp.sqrt(xp.sum((eye3 - R) ** 2)) < np.finfo(float).eps:
         transform_log[:3, 3] = p
         return transform_log
 
     omega_theta = compact_axis_angle_from_matrix(R)
-    theta = np.linalg.norm(omega_theta)
+    theta = xp.sqrt(xp.sum(omega_theta**2))
 
     if theta == 0:
         return transform_log
 
     J_inv = left_jacobian_SO3_inv(omega_theta)
-    v_theta = np.dot(J_inv, p)
+    v_theta = xp.matmul(J_inv, p)
 
     transform_log[:3, :3] = cross_product_matrix(omega_theta)
     transform_log[:3, 3] = v_theta
@@ -376,21 +395,29 @@ def exponential_coordinates_from_transform(A2B, strict_check=True, check=True):
     if check:
         A2B = check_transform(A2B, strict_check=strict_check)
 
+    xp = get_array_namespace(A2B)
     R = A2B[:3, :3]
     p = A2B[:3, 3]
 
-    if np.linalg.norm(np.eye(3) - R) < np.finfo(float).eps:
-        return np.r_[0.0, 0.0, 0.0, p]
+    eye3 = xp.eye(3, dtype=R.dtype, device=getattr(R, "device", None))
+    if xp.sqrt(xp.sum((eye3 - R) ** 2)) < np.finfo(float).eps:
+        zeros = xp.asarray(
+            [0.0, 0.0, 0.0], dtype=p.dtype, device=getattr(p, "device", None)
+        )
+        return xp.concat([zeros, p], axis=0)
 
     omega_theta = compact_axis_angle_from_matrix(R, check=check)
-    theta = np.linalg.norm(omega_theta)
+    theta = xp.sqrt(xp.sum(omega_theta**2))
 
     if theta == 0:
-        return np.r_[0.0, 0.0, 0.0, p]
+        zeros = xp.asarray(
+            [0.0, 0.0, 0.0], dtype=p.dtype, device=getattr(p, "device", None)
+        )
+        return xp.concat([zeros, p], axis=0)
 
-    v_theta = np.dot(left_jacobian_SO3_inv(omega_theta), p)
+    v_theta = xp.matmul(left_jacobian_SO3_inv(omega_theta), p)
 
-    return np.hstack((omega_theta, v_theta))
+    return xp.concat([omega_theta, v_theta], axis=0)
 
 
 def dual_quaternion_from_transform(A2B):
@@ -408,9 +435,15 @@ def dual_quaternion_from_transform(A2B):
         (pw, px, py, pz, qw, qx, qy, qz)
     """
     A2B = check_transform(A2B)
+    xp = get_array_namespace(A2B)
     real = quaternion_from_matrix(A2B[:3, :3])
-    dual = 0.5 * concatenate_quaternions(np.r_[0, A2B[:3, 3]], real)
-    return np.hstack((real, dual))
+    zeros = xp.asarray(
+        [0], dtype=A2B.dtype, device=getattr(A2B, "device", None)
+    )
+    dual = 0.5 * concatenate_quaternions(
+        xp.concat([zeros, A2B[:3, 3]], axis=0), real
+    )
+    return xp.concat([real, dual], axis=0)
 
 
 def adjoint_from_transform(A2B, strict_check=True, check=True):
@@ -504,11 +537,14 @@ def adjoint_from_transform(A2B, strict_check=True, check=True):
     if check:
         A2B = check_transform(A2B, strict_check)
 
+    xp = get_array_namespace(A2B)
     R = A2B[:3, :3]
     p = A2B[:3, 3]
 
-    adj_A2B = np.zeros((6, 6))
+    adj_A2B = xp.zeros(
+        (6, 6), dtype=A2B.dtype, device=getattr(A2B, "device", None)
+    )
     adj_A2B[:3, :3] = R
-    adj_A2B[3:, :3] = np.dot(cross_product_matrix(p), R)
+    adj_A2B[3:, :3] = xp.matmul(cross_product_matrix(p), R)
     adj_A2B[3:, 3:] = R
     return adj_A2B

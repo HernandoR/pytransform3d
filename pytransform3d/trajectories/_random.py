@@ -1,6 +1,7 @@
-"""Random trajectory generation."""
+"""Random trajectory generation (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # RNG & linalg fallback
+from ..array_api import get_array_namespace
 
 from ._dual_quaternions import (
     transforms_from_dual_quaternions,
@@ -67,11 +68,12 @@ def random_trajectories(
     samples = rng.normal(
         size=(n_trajectories, _N_EXP_COORDINATE_DIMS * n_steps)
     )
-    smooth_samples = np.dot(samples, L.T)
+    xp = get_array_namespace(samples, L)
+    smooth_samples = xp.matmul(samples, L.T)
     Sthetas = smooth_samples.reshape(
         n_trajectories, _N_EXP_COORDINATE_DIMS, n_steps
     ).transpose([0, 2, 1])
-    Sthetas *= np.asarray(scale)[np.newaxis, np.newaxis]
+    Sthetas *= np.asarray(scale)[None, None]
 
     trajectories = transforms_from_exponential_coordinates(Sthetas)
     for i in range(n_trajectories):
@@ -135,7 +137,10 @@ def _acceleration_L(n_dims, n_steps, dt):
         matrix.
     """
     A_per_dim = _create_fd_matrix_1d(n_steps, dt)
-    covariance = np.linalg.inv(np.dot(A_per_dim.T, A_per_dim))
+    xp = get_array_namespace(A_per_dim)
+    covariance = np.linalg.inv(
+        xp.matmul(A_per_dim.T, A_per_dim)
+    )  # cholesky may not be in all backends
     L_per_dim = np.linalg.cholesky(covariance)
 
     # Copy L for each dimension

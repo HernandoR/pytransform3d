@@ -10,6 +10,7 @@ import warnings
 import numpy as np
 from lxml import etree
 
+from .array_api import get_array_namespace
 from .rotations import (
     matrix_from_euler,
     matrix_from_axis_angle,
@@ -135,14 +136,22 @@ class UrdfTransformManager(TransformManager):
         # this is way faster than np.clip:
         value = min(max(value, limits[0]), limits[1])
         if joint_type == "revolute":
-            joint_rotation = matrix_from_axis_angle(np.hstack((axis, (value,))))
+            xp = get_array_namespace(axis)
+            joint_rotation = matrix_from_axis_angle(
+                xp.concat([axis, xp.asarray([value])], axis=0)
+            )
             joint2A = transform_from(
-                joint_rotation, np.zeros(3), strict_check=self.strict_check
+                joint_rotation,
+                xp.zeros(3, dtype=axis.dtype),
+                strict_check=self.strict_check,
             )
         elif joint_type == "prismatic":
             joint_offset = value * axis
+            xp = get_array_namespace(axis)
             joint2A = transform_from(
-                np.eye(3), joint_offset, strict_check=self.strict_check
+                xp.eye(3, dtype=axis.dtype),
+                joint_offset,
+                strict_check=self.strict_check,
             )
         else:
             assert joint_type == "fixed"
@@ -670,8 +679,7 @@ def _parse_joint(joint, link_names, strict_check):
         raise UrdfException("Unsupported joint type '%s'" % j.joint_type)
     if j.joint_type not in ["revolute", "continuous", "prismatic", "fixed"]:
         raise UrdfException(
-            "Joint type '%s' is not allowed in a URDF "
-            "document." % j.joint_type
+            "Joint type '%s' is not allowed in a URDF document." % j.joint_type
         )
 
     j.child2parent = _parse_origin(joint, strict_check)

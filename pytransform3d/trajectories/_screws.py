@@ -1,6 +1,7 @@
-"""Representations related to screw theory."""
+"""Representations related to screw theory (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # scalar trig convenience
+from ..array_api import get_array_namespace
 
 from ..batch_rotations import (
     matrices_from_compact_axis_angles,
@@ -34,7 +35,9 @@ def mirror_screw_axis_direction(Sthetas):
         Exponential coordinates of transformation:
         (omega_x, omega_y, omega_z, v_x, v_y, v_z)
     """
-    Sthetas_new = np.empty((len(Sthetas), 6))
+    Sthetas = np.asarray(Sthetas)
+    xp = get_array_namespace(Sthetas)
+    Sthetas_new = xp.empty((len(Sthetas), 6), dtype=Sthetas.dtype)
     for i, Stheta in enumerate(Sthetas):
         S, theta = screw_axis_from_exponential_coordinates(Stheta)
         q, s, h = screw_parameters_from_screw_axis(S)
@@ -66,14 +69,15 @@ def transforms_from_exponential_coordinates(Sthetas):
         Poses represented by homogeneous matrices
     """
     Sthetas = np.asarray(Sthetas)
+    xp = get_array_namespace(Sthetas)
     if Sthetas.ndim == 1:
         return transform_from_exponential_coordinates(Sthetas)
 
     instances_shape = Sthetas.shape[:-1]
 
-    t = np.linalg.norm(Sthetas[..., :3], axis=-1)
+    t = xp.sqrt(xp.sum(Sthetas[..., :3] ** 2, axis=-1))
 
-    A2Bs = np.empty(instances_shape + (4, 4))
+    A2Bs = xp.empty(instances_shape + (4, 4), dtype=Sthetas.dtype)
     A2Bs[..., 3, :] = (0, 0, 0, 1)
 
     ind_only_translation = t == 0.0
@@ -103,8 +107,8 @@ def transforms_from_exponential_coordinates(Sthetas):
         #     - v_y*(o0*(cos(t) - 1) - o1*o2*(t - sin(t)))
         #     - v_z*(o0**2*(t - sin(t)) + o1**2*(t - sin(t)) - t)
 
-        tms = t - np.sin(t)
-        cm1 = np.cos(t) - 1.0
+        tms = t - xp.sin(t)
+        cm1 = xp.cos(t) - 1.0
         o0 = screw_axes[..., 0]
         o1 = screw_axes[..., 1]
         o2 = screw_axes[..., 2]
@@ -175,29 +179,31 @@ def dual_quaternions_from_screw_parameters(qs, s_axis, hs, thetas):
     pytransform3d.transformations.dual_quaternion_from_screw_parameters :
         Compute dual quaternion from screw parameters.
     """
+    hs = np.asarray(hs)
+    qs = np.asarray(qs)
+    s_axis = np.asarray(s_axis)
+    thetas = np.asarray(thetas)
+    xp = get_array_namespace(qs, s_axis, hs, thetas)
     h_is_not_inf_mask = ~np.isinf(hs)
     mod_thetas = np.where(h_is_not_inf_mask, thetas, 0.0)
-    ds = np.copy(thetas)
+    ds = xp.copy(thetas)
     ds[h_is_not_inf_mask] *= hs[h_is_not_inf_mask]
 
-    moments = np.cross(qs, s_axis)
+    moments = xp.cross(qs, s_axis)
     half_distances = 0.5 * ds
     half_thetas = 0.5 * mod_thetas
     sin_half_angles = np.sin(half_thetas)
     cos_half_angles = np.cos(half_thetas)
 
     real_w = cos_half_angles
-    real_vec = sin_half_angles[..., np.newaxis] * s_axis
+    real_vec = sin_half_angles[..., None] * s_axis
     dual_w = -half_distances * sin_half_angles
     dual_vec = (
-        sin_half_angles[..., np.newaxis] * moments
-        + half_distances[..., np.newaxis]
-        * cos_half_angles[..., np.newaxis]
-        * s_axis
+        sin_half_angles[..., None] * moments
+        + half_distances[..., None] * cos_half_angles[..., None] * s_axis
     )
 
-    result = np.concatenate(
-        [real_w[..., np.newaxis], real_vec, dual_w[..., np.newaxis], dual_vec],
-        axis=-1,
+    result = xp.concatenate(
+        [real_w[..., None], real_vec, dual_w[..., None], dual_vec], axis=-1
     )
     return result

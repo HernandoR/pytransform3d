@@ -1,6 +1,6 @@
-"""Plotting utilities."""
+"""Plotting utilities (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # kept for linspace and constants
 
 from ._screws import check_screw_parameters
 from ._transform import check_transform
@@ -10,6 +10,7 @@ from ._transform_operations import (
     vector_to_direction,
     vectors_to_points,
 )
+from ..array_api import get_array_namespace
 
 
 def plot_transform(
@@ -54,6 +55,7 @@ def plot_transform(
 
     if A2B is None:
         A2B = np.eye(4)
+    xp = get_array_namespace(A2B)
     A2B = check_transform(A2B, strict_check=strict_check)
 
     frame = Frame(A2B, name, s, **kwargs)
@@ -131,6 +133,7 @@ def plot_screw(
     q, s_axis, h = check_screw_parameters(q, s_axis, h)
 
     origin_projected_on_screw_axis = q + vector_projection(-q, s_axis)
+    xp = get_array_namespace(q, s_axis)
 
     pure_translation = np.isinf(h)
 
@@ -141,7 +144,7 @@ def plot_screw(
         )
         screw_axis_to_translated_frame = h * s_axis
 
-        arc = np.empty((100, 3))
+        arc = xp.empty((100, 3), dtype=q.dtype)
         angle = angle_between_vectors(
             screw_axis_to_old_frame, screw_axis_to_rotated_frame
         )
@@ -206,7 +209,9 @@ def plot_screw(
             alpha=alpha,
             **kwargs,
         )
-        arrow_coords = np.vstack((arc[-1], arc[-1] + (arc[-1] - arc[-2]))).T
+        arrow_coords = xp.stack(
+            [arc[-1], arc[-1] + (arc[-1] - arc[-2])], axis=0
+        ).T
         angle_arrow = Arrow3D(
             arrow_coords[0],
             arrow_coords[1],
@@ -220,7 +225,9 @@ def plot_screw(
         ax.add_artist(angle_arrow)
 
         for i in [0, -1]:
-            arc_bound = np.vstack((origin_projected_on_screw_axis, arc[i])).T
+            arc_bound = xp.stack(
+                [origin_projected_on_screw_axis, arc[i]], axis=0
+            ).T
             ax.plot(
                 arc_bound[0],
                 arc_bound[1],
