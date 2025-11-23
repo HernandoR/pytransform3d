@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import ensure_numpy_array
 from ._axis_angle import check_axis_angle
 from ._constants import a_id, p0, unitx, unity
 from ._matrix import check_matrix
@@ -51,7 +52,9 @@ def plot_basis(
 
     if R is None:
         R = np.eye(3)
+    R = ensure_numpy_array(R, "R")
     R = check_matrix(R, strict_check=strict_check)
+    p = ensure_numpy_array(p, "p")
 
     A2B = np.eye(4)
     A2B[:3, :3] = R
@@ -93,7 +96,9 @@ def plot_axis_angle(ax=None, a=a_id, p=p0, s=1.0, ax_s=1, **kwargs):
     """
     from ..plot_utils import make_3d_axis, Arrow3D
 
+    a = ensure_numpy_array(a, "a")
     a = check_axis_angle(a)
+    p = ensure_numpy_array(p, "p")
     if ax is None:
         ax = make_3d_axis(ax_s)
 
@@ -204,6 +209,9 @@ def plot_bivector(ax=None, a=None, b=None, ax_s=1):
         a = np.array([1, 0, 0])
     if b is None:
         b = np.array([0, 1, 0])
+    
+    a = ensure_numpy_array(a, "a")
+    b = ensure_numpy_array(b, "b")
 
     B = wedge(a, b)
     normal = plane_normal_from_bivector(B)
