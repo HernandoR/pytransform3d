@@ -40,7 +40,7 @@ Migration is being done systematically, one module at a time:
 - `ensure_numpy_array()` - Enforce NumPy for visualization
 - Comprehensive logging for type conversions
 
-#### `rotations/_utils.py` (6 functions)
+#### `rotations/_utils.py` (6 functions) ✅
 - `norm_vector()` - Normalize vectors
 - `perpendicular_to_vectors()` - Cross product
 - `perpendicular_to_vector()` - Find perpendicular vector
@@ -48,18 +48,51 @@ Migration is being done systematically, one module at a time:
 - `vector_projection()` - Project vectors
 - `plane_basis_from_normal()` - Compute basis vectors
 
-#### `rotations/_angle.py` (4 functions)
+#### `rotations/_angle.py` (4 functions) ✅
 - `norm_angle()` - Normalize angles
 - `active_matrix_from_angle()` - Create rotation matrices
 - `passive_matrix_from_angle()` - Create rotation matrices
 - `quaternion_from_angle()` - Create quaternions
 
-#### `rotations/_plot.py` (3 functions - validation added)
+#### `rotations/_matrix.py` (7 functions) ✅
+- `check_matrix()` - Rotation matrix validation
+- `matrix_requires_renormalization()` - Check if matrix needs renormalization
+- `norm_matrix()` - Orthonormalize rotation matrix
+- `matrix_from_two_vectors()` - Create rotation matrix from two vectors
+- `quaternion_from_matrix()` - Convert rotation matrix to quaternion
+- `axis_angle_from_matrix()` - Convert rotation matrix to axis-angle
+- `compact_axis_angle_from_matrix()` - Convert to compact axis-angle
+
+#### `batch_rotations/_utils.py` (3 functions) ✅
+- `norm_vectors()` - Batch vector normalization
+- `angles_between_vectors()` - Batch angle computation
+- `cross_product_matrices()` - Cross product matrix generation
+
+#### `rotations/_plot.py` (3 functions - validation added) ✅
 - `plot_basis()` - Requires NumPy arrays
 - `plot_axis_angle()` - Requires NumPy arrays
 - `plot_bivector()` - Requires NumPy arrays
 
 ### 🔄 In Progress
+
+#### `rotations/_quaternion.py` (5/~20 functions completed, 25%)
+Completed functions:
+- `check_quaternion()` - Quaternion validation
+- `check_quaternions()` - Batch quaternion validation
+- `quaternion_requires_renormalization()` - Check if quaternion needs renormalization
+- `quaternion_double()` - Create equivalent quaternion
+- `pick_closest_quaternion_impl()` - Resolve quaternion ambiguity
+
+Remaining: ~15 functions (conversions, operations, integrations)
+
+#### `rotations/_axis_angle.py` (4/~15 functions completed, 27%)
+Completed functions:
+- `check_axis_angle()` - Axis-angle validation
+- `check_compact_axis_angle()` - Compact axis-angle validation
+- `norm_axis_angle()` - Normalize axis-angle
+- `norm_compact_axis_angle()` - Normalize compact axis-angle
+
+Remaining: ~11 functions (conversions, operations)
 
 #### `batch_rotations` (Partially complete)
 Some functions already support array API:
@@ -68,18 +101,16 @@ Some functions already support array API:
 
 ### ⏳ Pending Modules
 
-#### `rotations` (Remaining ~90 functions)
-- `_matrix.py` - Rotation matrix operations
-- `_quaternion.py` - Quaternion operations
-- `_axis_angle.py` - Axis-angle operations
-- `_euler.py` - Euler angle operations
-- `_mrp.py` - Modified Rodrigues parameters
-- `_rotors.py` - Rotor operations
-- `_slerp.py` - Spherical interpolation
-- `_rot_log.py` - Rotation logarithm
-- `_random.py` - Random rotations
-- `_jacobians.py` - Jacobian matrices
-- `_polar_decomp.py` - Polar decomposition
+#### `rotations` (Remaining ~70 functions)
+- `_euler.py` - Euler angle operations (~10 functions)
+- `_mrp.py` - Modified Rodrigues parameters (~8 functions)
+- `_rotors.py` - Rotor operations (~8 functions)
+- `_slerp.py` - Spherical interpolation (~6 functions)
+- `_rot_log.py` - Rotation logarithm (~4 functions)
+- `_random.py` - Random rotations (~5 functions)
+- `_jacobians.py` - Jacobian matrices (~4 functions)
+- `_polar_decomp.py` - Polar decomposition (~1 function)
+- Remaining functions in `_quaternion.py` and `_axis_angle.py`
 
 #### Other Core Modules
 - `transformations/` - SE(3) transformations
