@@ -258,3 +258,110 @@ class TestVisualizationValidation:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestRotationsMatrixArrayAPI:
+    """Test rotations._matrix functions with different array backends."""
+
+    def test_check_matrix_numpy(self):
+        """Test check_matrix with numpy."""
+        from pytransform3d.rotations import check_matrix
+        
+        R = np.eye(3)
+        result = check_matrix(R)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 3)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_check_matrix_torch(self):
+        """Test check_matrix with torch."""
+        from pytransform3d.rotations import check_matrix
+        
+        R = torch.eye(3, dtype=torch.float64)
+        result = check_matrix(R)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3, 3)
+
+    def test_norm_matrix_numpy(self):
+        """Test norm_matrix with numpy."""
+        from pytransform3d.rotations import norm_matrix
+        
+        R = np.eye(3) + np.random.randn(3, 3) * 0.01
+        result = norm_matrix(R)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 3)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_norm_matrix_torch(self):
+        """Test norm_matrix with torch."""
+        from pytransform3d.rotations import norm_matrix
+        
+        R = torch.eye(3, dtype=torch.float64) + torch.randn(3, 3, dtype=torch.float64) * 0.01
+        result = norm_matrix(R)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3, 3)
+
+    def test_matrix_from_two_vectors_numpy(self):
+        """Test matrix_from_two_vectors with numpy."""
+        from pytransform3d.rotations import matrix_from_two_vectors
+        
+        a = np.array([1.0, 0.0, 0.0])
+        b = np.array([0.0, 1.0, 0.0])
+        result = matrix_from_two_vectors(a, b)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 3)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_matrix_from_two_vectors_torch(self):
+        """Test matrix_from_two_vectors with torch."""
+        from pytransform3d.rotations import matrix_from_two_vectors
+        
+        a = torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64)
+        b = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float64)
+        result = matrix_from_two_vectors(a, b)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3, 3)
+
+    def test_quaternion_from_matrix_numpy(self):
+        """Test quaternion_from_matrix with numpy."""
+        from pytransform3d.rotations import quaternion_from_matrix
+        
+        R = np.eye(3)
+        result = quaternion_from_matrix(R)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (4,)
+        np.testing.assert_allclose(result, [1.0, 0.0, 0.0, 0.0], atol=1e-6)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_quaternion_from_matrix_torch(self):
+        """Test quaternion_from_matrix with torch."""
+        from pytransform3d.rotations import quaternion_from_matrix
+        
+        R = torch.eye(3, dtype=torch.float64)
+        result = quaternion_from_matrix(R)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (4,)
+        torch.testing.assert_close(
+            result, 
+            torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=torch.float64),
+            atol=1e-6, rtol=1e-6
+        )
+
+    def test_axis_angle_from_matrix_numpy(self):
+        """Test axis_angle_from_matrix with numpy."""
+        from pytransform3d.rotations import axis_angle_from_matrix
+        
+        R = np.eye(3)
+        result = axis_angle_from_matrix(R)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (4,)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_axis_angle_from_matrix_torch(self):
+        """Test axis_angle_from_matrix with torch."""
+        from pytransform3d.rotations import axis_angle_from_matrix
+        
+        R = torch.eye(3, dtype=torch.float64)
+        result = axis_angle_from_matrix(R)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (4,)
