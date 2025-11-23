@@ -216,7 +216,7 @@ def assert_quaternion_equal(q1, q2, *args, **kwargs):
         assert_array_almost_equal(q1, -q2, *args, **kwargs)
 
 
-def quaternion_integrate(Qd, q0=np.array([1.0, 0.0, 0.0, 0.0]), dt=1.0):
+def quaternion_integrate(Qd, q0=None, dt=1.0):
     """Integrate angular velocities to quaternions.
 
      Angular velocities are given in global frame and will be left-multiplied
@@ -239,9 +239,20 @@ def quaternion_integrate(Qd, q0=np.array([1.0, 0.0, 0.0, 0.0]), dt=1.0):
     Q : array-like, shape (n_steps, 4)
         Quaternions to represent rotations: (w, x, y, z)
     """
-    Q = np.empty((len(Qd), 4))
+    Qd = check_array_type(Qd, "Qd")
+    xp = get_array_namespace(Qd)
+    
+    if q0 is None:
+        q0 = xp.asarray([1.0, 0.0, 0.0, 0.0])
+    else:
+        q0 = check_array_type(q0, "q0")
+        q0 = xp.asarray(q0)
+    
+    n_steps = Qd.shape[0]
+    Q = xp.zeros((n_steps, 4))
     Q[0] = q0
-    for t in range(1, len(Qd)):
+    
+    for t in range(1, n_steps):
         qd = (Qd[t] + Qd[t - 1]) / 2.0
         Q[t] = concatenate_quaternions(
             quaternion_from_compact_axis_angle(dt * qd), Q[t - 1]
@@ -280,14 +291,18 @@ def quaternion_gradient(Q, dt=1.0):
         orientation respectively.
     """
     Q = check_quaternions(Q)
-    Qd = np.empty((len(Q), 3))
+    xp = get_array_namespace(Q)
+    
+    n_steps = Q.shape[0]
+    Qd = xp.zeros((n_steps, 3))
+    
     Qd[0] = (
         compact_axis_angle_from_quaternion(
             concatenate_quaternions(Q[1], q_conj(Q[0]))
         )
         / dt
     )
-    for t in range(1, len(Q) - 1):
+    for t in range(1, n_steps - 1):
         # divided by two because of central differences
         Qd[t] = compact_axis_angle_from_quaternion(
             concatenate_quaternions(Q[t + 1], q_conj(Q[t - 1]))
@@ -342,10 +357,22 @@ def concatenate_quaternions(q1, q2):
     """
     q1 = check_quaternion(q1, unit=False)
     q2 = check_quaternion(q2, unit=False)
-    q12 = np.empty(4)
-    q12[0] = q1[0] * q2[0] - np.dot(q1[1:], q2[1:])
-    q12[1:] = q1[0] * q2[1:] + q2[0] * q1[1:] + np.cross(q1[1:], q2[1:])
-    return q12
+    xp = get_array_namespace(q1, q2)
+    
+    # Compute scalar part: w1*w2 - dot(v1, v2)
+    scalar = q1[0] * q2[0] - xp.sum(q1[1:] * q2[1:])
+    
+    # Compute vector part: w1*v2 + w2*v1 + cross(v1, v2)
+    # Use linalg.cross if available (PyTorch), otherwise use cross
+    if hasattr(xp.linalg, 'cross'):
+        cross_product = xp.linalg.cross(q1[1:], q2[1:])
+    else:
+        cross_product = xp.cross(q1[1:], q2[1:])
+    
+    vector = q1[0] * q2[1:] + q2[0] * q1[1:] + cross_product
+    
+    # Combine scalar and vector parts
+    return xp.concat([xp.asarray([scalar]), vector])
 
 
 def q_prod_vector(q, v):
@@ -396,8 +423,16 @@ def q_prod_vector(q, v):
         Hamilton's quaternion multiplication.
     """
     q = check_quaternion(q)
-    t = 2 * np.cross(q[1:], v)
-    return v + q[0] * t + np.cross(q[1:], t)
+    v = check_array_type(v, "v")
+    xp = get_array_namespace(q, v)
+    
+    # Use linalg.cross if available (PyTorch), otherwise use cross
+    if hasattr(xp.linalg, 'cross'):
+        t = 2 * xp.linalg.cross(q[1:], v)
+        return v + q[0] * t + xp.linalg.cross(q[1:], t)
+    else:
+        t = 2 * xp.cross(q[1:], v)
+        return v + q[0] * t + xp.cross(q[1:], t)
 
 
 def q_conj(q):
@@ -430,7 +465,8 @@ def q_conj(q):
     rotor_reverse : Reverse of a rotor, which is the same operation.
     """
     q = check_quaternion(q, unit=False)
-    return np.array([q[0], -q[1], -q[2], -q[3]])
+    xp = get_array_namespace(q)
+    return xp.asarray([q[0], -q[1], -q[2], -q[3]])
 
 
 def quaternion_dist(q1, q2):
@@ -460,7 +496,8 @@ def quaternion_dist(q1, q2):
     q2 = check_quaternion(q2)
     q12c = concatenate_quaternions(q1, q_conj(q2))
     angle = axis_angle_from_quaternion(q12c)[-1]
-    return min(angle, 2.0 * np.pi - angle)
+    xp = get_array_namespace(angle)
+    return float(min(angle, 2.0 * xp.pi - angle))
 
 
 def quaternion_diff(q1, q2):
@@ -550,7 +587,9 @@ def matrix_from_quaternion(q):
         Rotation matrix
     """
     q = check_quaternion(q, unit=True)
-    w, x, y, z = q
+    xp = get_array_namespace(q)
+    
+    w, x, y, z = q[0], q[1], q[2], q[3]
     x2 = 2.0 * x * x
     y2 = 2.0 * y * y
     z2 = 2.0 * z * z
@@ -561,7 +600,7 @@ def matrix_from_quaternion(q):
     yw = 2.0 * y * w
     zw = 2.0 * z * w
 
-    R = np.array(
+    R = xp.asarray(
         [
             [1.0 - y2 - z2, xy - zw, xz + yw],
             [xy + zw, 1.0 - x2 - z2, yz - xw],
@@ -590,16 +629,25 @@ def axis_angle_from_quaternion(q):
         constrained to [0, pi) so that the mapping is unique.
     """
     q = check_quaternion(q)
+    xp = get_array_namespace(q)
+    
     p = q[1:]
-    p_norm = np.linalg.norm(p)
+    p_norm = xp.linalg.vector_norm(p)
 
-    if p_norm < np.finfo(float).eps:
-        return np.array([1.0, 0.0, 0.0, 0.0])
+    # Get epsilon for the array type
+    if hasattr(xp, 'finfo'):
+        eps = xp.finfo(q.dtype).eps
+    else:
+        eps = float(xp.finfo(xp.float64).eps)
+
+    if float(p_norm) < eps:
+        return xp.asarray([1.0, 0.0, 0.0, 0.0])
 
     axis = p / p_norm
-    w_clamped = max(min(q[0], 1.0), -1.0)
-    angle = (2.0 * np.arccos(w_clamped),)
-    return norm_axis_angle(np.hstack((axis, angle)))
+    # Clamp w to [-1, 1] to avoid numerical issues with arccos
+    w_clamped = xp.clip(q[0], -1.0, 1.0)
+    angle = 2.0 * xp.acos(w_clamped)
+    return norm_axis_angle(xp.concat([axis, xp.asarray([angle])]))
 
 
 def compact_axis_angle_from_quaternion(q):
@@ -655,7 +703,8 @@ def quaternion_xyzw_from_wxyz(q_wxyz):
         Quaternion with scalar part after vector part
     """
     q_wxyz = check_quaternion(q_wxyz)
-    return np.array([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
+    xp = get_array_namespace(q_wxyz)
+    return xp.asarray([q_wxyz[1], q_wxyz[2], q_wxyz[3], q_wxyz[0]])
 
 
 def quaternion_wxyz_from_xyzw(q_xyzw):
@@ -672,4 +721,5 @@ def quaternion_wxyz_from_xyzw(q_xyzw):
         Quaternion with scalar part before vector part
     """
     q_xyzw = check_quaternion(q_xyzw)
-    return np.array([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
+    xp = get_array_namespace(q_xyzw)
+    return xp.asarray([q_xyzw[3], q_xyzw[0], q_xyzw[1], q_xyzw[2]])
