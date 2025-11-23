@@ -27,6 +27,7 @@ from pytransform3d.rotations import (
 # Try to import torch for testing
 try:
     import torch
+
     HAS_TORCH = True
 except ImportError:
     HAS_TORCH = False
@@ -39,34 +40,38 @@ class TestArrayAPIUtilities:
         """Test getting numpy namespace."""
         arr = np.array([1.0, 2.0, 3.0])
         xp = get_array_namespace(arr)
-        assert hasattr(xp, 'asarray')
-        assert hasattr(xp, 'zeros')
+        assert hasattr(xp, "asarray")
+        assert hasattr(xp, "zeros")
 
     def test_get_array_namespace_list(self):
         """Test that lists are converted to numpy."""
         lst = [1.0, 2.0, 3.0]
         xp = get_array_namespace(lst)
-        assert hasattr(xp, 'asarray')
+        assert hasattr(xp, "asarray")
 
     @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
     def test_get_array_namespace_torch(self):
         """Test getting torch namespace."""
         arr = torch.tensor([1.0, 2.0, 3.0])
         xp = get_array_namespace(arr)
-        assert hasattr(xp, 'asarray')
-        assert hasattr(xp, 'zeros')
+        assert hasattr(xp, "asarray")
+        assert hasattr(xp, "zeros")
 
     def test_check_array_type_scalar_warning(self, caplog):
         """Test that scalars are converted with warning."""
         result = check_array_type(5.0, "test_param")
         assert isinstance(result, (np.ndarray, float, np.floating))
-        assert any("scalar" in record.message.lower() for record in caplog.records)
+        assert any(
+            "scalar" in record.message.lower() for record in caplog.records
+        )
 
     def test_check_array_type_list_warning(self, caplog):
         """Test that lists are converted with warning."""
         result = check_array_type([1.0, 2.0], "test_param")
         assert isinstance(result, np.ndarray)
-        assert any("list" in record.message.lower() for record in caplog.records)
+        assert any(
+            "list" in record.message.lower() for record in caplog.records
+        )
 
     def test_ensure_numpy_array_numpy(self):
         """Test ensure_numpy_array with numpy array."""
@@ -100,8 +105,13 @@ class TestRotationsUtilsArrayAPI:
         v = torch.tensor([3.0, 4.0, 0.0], dtype=torch.float64)
         result = norm_vector(v)
         assert isinstance(result, torch.Tensor)
-        torch.testing.assert_close(result, torch.tensor([0.6, 0.8, 0.0], dtype=torch.float64))
-        torch.testing.assert_close(torch.linalg.vector_norm(result), torch.tensor(1.0, dtype=torch.float64))
+        torch.testing.assert_close(
+            result, torch.tensor([0.6, 0.8, 0.0], dtype=torch.float64)
+        )
+        torch.testing.assert_close(
+            torch.linalg.vector_norm(result),
+            torch.tensor(1.0, dtype=torch.float64),
+        )
 
     def test_perpendicular_to_vectors_numpy(self):
         """Test perpendicular_to_vectors with numpy."""
@@ -118,7 +128,9 @@ class TestRotationsUtilsArrayAPI:
         b = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float64)
         result = perpendicular_to_vectors(a, b)
         assert isinstance(result, torch.Tensor)
-        torch.testing.assert_close(result, torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64))
+        torch.testing.assert_close(
+            result, torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64)
+        )
 
     def test_angle_between_vectors_numpy(self):
         """Test angle_between_vectors with numpy."""
@@ -135,7 +147,12 @@ class TestRotationsUtilsArrayAPI:
         b = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float64)
         result = angle_between_vectors(a, b)
         assert isinstance(result, torch.Tensor)
-        torch.testing.assert_close(result, torch.tensor(torch.pi / 2, dtype=torch.float64), rtol=1e-6, atol=1e-8)
+        torch.testing.assert_close(
+            result,
+            torch.tensor(torch.pi / 2, dtype=torch.float64),
+            rtol=1e-6,
+            atol=1e-8,
+        )
 
     def test_vector_projection_numpy(self):
         """Test vector_projection with numpy."""
@@ -152,7 +169,9 @@ class TestRotationsUtilsArrayAPI:
         b = torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64)
         result = vector_projection(a, b)
         assert isinstance(result, torch.Tensor)
-        torch.testing.assert_close(result, torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64))
+        torch.testing.assert_close(
+            result, torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64)
+        )
 
 
 class TestRotationsAngleArrayAPI:
@@ -171,7 +190,12 @@ class TestRotationsAngleArrayAPI:
         a = torch.tensor(3.5 * np.pi, dtype=torch.float64)
         result = norm_angle(a)
         assert isinstance(result, torch.Tensor)
-        torch.testing.assert_close(result, torch.tensor(-0.5 * np.pi, dtype=torch.float64), rtol=1e-6, atol=1e-8)
+        torch.testing.assert_close(
+            result,
+            torch.tensor(-0.5 * np.pi, dtype=torch.float64),
+            rtol=1e-6,
+            atol=1e-8,
+        )
 
     def test_active_matrix_from_angle_numpy(self):
         """Test active_matrix_from_angle with numpy."""
@@ -211,7 +235,7 @@ class TestVisualizationValidation:
     def test_plot_basis_rejects_torch(self):
         """Test that plot_basis rejects torch tensors."""
         from pytransform3d.rotations import plot_basis
-        
+
         R = torch.eye(3, dtype=torch.float64)
         with pytest.raises(ValueError, match="must be a numpy array"):
             plot_basis(R=R)
@@ -220,12 +244,13 @@ class TestVisualizationValidation:
         """Test that plot_basis accepts numpy arrays."""
         from pytransform3d.rotations import plot_basis
         import matplotlib
-        matplotlib.use('Agg')
+
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        
+
         R = np.eye(3)
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection="3d")
         result = plot_basis(ax=ax, R=R)
         plt.close(fig)
         assert result is not None

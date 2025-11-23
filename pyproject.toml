@@ -1,9 +1,25 @@
 [project]
 name = "pytransform3d"
+readme = { file = "README.md", content-type = "text/markdown" }
 version = "1.0.0"
-description = "Python library for 3D transformations"
-readme = "README.md"
-requires-python = ">=3.8"
+authors = [{ name = "Alexander Fabisch", email = "afabisch@googlemail.com" }]
+description = "3D transformations for Python"
+urls = { "Homepage" = "https://github.com/dfki-ric/pytransform3d" }
+license = { file = "LICENSE" } # Assumes you have a LICENSE file (BSD-3-Clause)
+classifiers = [
+    "Programming Language :: Python :: 2",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+keywords = [
+    "3d transformations",
+    "robotics",
+    "mathematics",
+] # Optional (adds discoverability)
+
 dependencies = [
     "lxml>=5.4.0",
     "matplotlib>=3.7.5",
@@ -16,11 +32,7 @@ dependencies = [
     "array-api-compat>=1.9",
 ]
 [project.optional-dependencies]
-test = [
-    "pytest>=8.3.5",
-    "pytest-cov>=5.0.0",
-    "torch>=2.0.1",
-]
+test = ["pytest>=8.3.5", "pytest-cov>=5.0.0", "torch>=2.0.1"]
 all = [
     "pydot>=3.0.4",
     "trimesh>=4.6.8",
@@ -36,7 +48,9 @@ doc = [
     "sphinxcontrib.video>=0.0.1",
 ]
 
-[tool.uv]
+[build-system]
+requires = ["hatchling>=1.18.0"]  # Minimum Hatchling version (adjust if needed)
+build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 80
@@ -61,10 +75,7 @@ exclude = '''
 [tool.ruff]
 line-length = 80
 target-version = "py38"
-include = [
-    "pytransform3d/**/*.py",
-    "examples//**/*.py",
-]
+include = ["pytransform3d/**/*.py", "examples//**/*.py"]
 
 [tool.ruff.lint]
 select = [
@@ -82,24 +93,32 @@ select = [
     "I",
 ]
 # all rules can be found here: https://beta.ruff.rs/docs/rules/
-ignore=[
-    "B008",  # Do not perform function calls in argument defaults
-    "I001",  # isort found an import in the wrong position
-    "SIM108",  # Use ternary operator
+ignore = [
+    "B008",   # Do not perform function calls in argument defaults
+    "I001",   # isort found an import in the wrong position
+    "SIM108", # Use ternary operator
     # old Python style, should be deprecated soon
     "UP004",  # Class inherits from `object`
     "UP008",  # Use `super()` instead of `super(__class__, self)`
     "UP015",  # Unnecessary mode argument
     "UP031",  # Use format specifiers instead of percent format
-    "SIM118",  # Use `key in dict` instead of `key in dict.keys()`
+    "SIM118", # Use `key in dict` instead of `key in dict.keys()`
 ]
 
 [tool.ruff.format]
 quote-style = "double"
 
+[tool.uv.workspace]
+members = ["."]
+
+[tool.uv.sources]
+pytransform3d = { workspace = true, editable = true }
+
 [dependency-groups]
 dev = [
     "array-api-compat>=1.9",
+    "graphviz>=0.21",
     "pytest>=8.3.5",
     "pytest-cov>=5.0.0",
+    # "pytransform3d[all,test,doc]",
 ]
