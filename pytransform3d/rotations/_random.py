@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._axis_angle import matrix_from_compact_axis_angle
 from ._matrix import check_matrix, norm_matrix
 from ._utils import norm_vector
@@ -25,7 +26,9 @@ def random_vector(rng=np.random.default_rng(0), n=3):
     v : array, shape (n,)
         Random vector
     """
-    return rng.standard_normal(size=n)
+    # Note: random number generation stays with numpy, only the result is converted
+    v = rng.standard_normal(size=n)
+    return np.asarray(v)
 
 
 def random_axis_angle(rng=np.random.default_rng(0)):
@@ -46,9 +49,11 @@ def random_axis_angle(rng=np.random.default_rng(0)):
     a : array, shape (4,)
         Axis of rotation and rotation angle: (x, y, z, angle)
     """
+    # Note: random number generation stays with numpy
     angle = np.pi * rng.random()
-    a = np.array([0, 0, 0, angle])
-    a[:3] = norm_vector(rng.standard_normal(size=3))
+    axis = norm_vector(rng.standard_normal(size=3))
+    a = np.asarray([0, 0, 0, angle])
+    a[:3] = axis
     return a
 
 
@@ -71,7 +76,8 @@ def random_compact_axis_angle(rng=np.random.default_rng(0)):
         Axis of rotation and rotation angle: angle * (x, y, z)
     """
     a = random_axis_angle(rng)
-    return a[:3] * a[3]
+    # Use numpy operations for the result
+    return np.asarray(a[:3] * a[3])
 
 
 def random_quaternion(rng=np.random.default_rng(0)):
@@ -87,6 +93,7 @@ def random_quaternion(rng=np.random.default_rng(0)):
     q : array, shape (4,)
         Unit quaternion to represent rotation: (w, x, y, z)
     """
+    # Note: random number generation stays with numpy
     return norm_vector(rng.standard_normal(size=4))
 
 
@@ -120,6 +127,10 @@ def random_matrix(rng=np.random.default_rng(0), mean=np.eye(3), cov=np.eye(3)):
         Rotation matrix
     """
     mean = check_matrix(mean)
+    # Note: random number generation stays with numpy, array API for operations
     a = rng.multivariate_normal(mean=np.zeros(3), cov=cov)
     delta = matrix_from_compact_axis_angle(a)
-    return norm_matrix(np.dot(delta, mean))
+    # Use array API for matrix multiplication
+    xp = get_array_namespace(delta, mean)
+    result = xp.matmul(delta, mean)
+    return norm_matrix(result)

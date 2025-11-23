@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._constants import unitx, unity, unitz, eps
 from ._quaternion import concatenate_quaternions, q_prod_vector
 from ._utils import norm_vector, perpendicular_to_vector
@@ -25,7 +26,9 @@ def check_rotor(rotor):
     ValueError
         If input is invalid
     """
-    rotor = np.asarray(rotor, dtype=np.float64)
+    rotor = check_array_type(rotor, "rotor")
+    xp = get_array_namespace(rotor)
+    rotor = xp.asarray(rotor, dtype=xp.float64)
     if rotor.ndim != 1 or rotor.shape[0] != 4:
         raise ValueError(
             "Expected rotor with shape (4,), got "
@@ -55,7 +58,14 @@ def wedge(a, b):
         Bivector that defines the plane that a and b form together:
         (b_yz, b_zx, b_xy)
     """
-    return np.cross(a, b)
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
+    # Use linalg.cross if available (PyTorch), otherwise use cross
+    if hasattr(xp.linalg, 'cross'):
+        return xp.linalg.cross(a, b)
+    else:
+        return xp.cross(a, b)
 
 
 def plane_normal_from_bivector(B):
@@ -102,7 +112,11 @@ def geometric_product(a, b):
         A multivector (a, b_yz, b_zx, b_xy) composed of scalar and bivector
         (b_yz, b_zx, b_xy) that form the geometric product of vectors a and b.
     """
-    return np.hstack(((np.dot(a, b),), wedge(a, b)))
+    a = check_array_type(a, "a")
+    b = check_array_type(b, "b")
+    xp = get_array_namespace(a, b)
+    dot_product = xp.sum(a * b)
+    return xp.concat([xp.asarray([dot_product]), wedge(a, b)])
 
 
 def rotor_reverse(rotor):
@@ -123,7 +137,8 @@ def rotor_reverse(rotor):
     q_conj : Quaternion conjugate, which is the same operation.
     """
     rotor = check_rotor(rotor)
-    return np.hstack(((rotor[0],), -rotor[1:]))
+    xp = get_array_namespace(rotor)
+    return xp.concat([xp.asarray([rotor[0]]), -rotor[1:]])
 
 
 def concatenate_rotors(rotor1, rotor2):
@@ -198,13 +213,11 @@ def matrix_from_rotor(rotor):
         Rotation matrix
     """
     rotor = check_rotor(rotor)
-    return np.column_stack(
-        (
-            rotor_apply(rotor, unitx),
-            rotor_apply(rotor, unity),
-            rotor_apply(rotor, unitz),
-        )
-    )
+    xp = get_array_namespace(rotor)
+    col1 = rotor_apply(rotor, unitx)
+    col2 = rotor_apply(rotor, unity)
+    col3 = rotor_apply(rotor, unitz)
+    return xp.stack([col1, col2, col3], axis=1)
 
 
 def rotor_from_two_directions(v_from, v_to):
@@ -225,15 +238,16 @@ def rotor_from_two_directions(v_from, v_to):
     """
     v_from = norm_vector(v_from)
     v_to = norm_vector(v_to)
-    cos_angle_p1 = 1.0 + np.dot(v_from, v_to)
-    if cos_angle_p1 < eps:
+    xp = get_array_namespace(v_from, v_to)
+    cos_angle_p1 = 1.0 + xp.sum(v_from * v_to)
+    if float(cos_angle_p1) < eps:
         # There is an infinite number of solutions for the plane of rotation.
         # This solution works with our convention, since the rotation axis is
         # the same as the plane bivector.
         plane = perpendicular_to_vector(v_from)
     else:
         plane = wedge(v_from, v_to)
-    multivector = np.hstack(((cos_angle_p1,), plane))
+    multivector = xp.concat([xp.asarray([cos_angle_p1]), plane])
     return norm_vector(multivector)
 
 
@@ -254,7 +268,8 @@ def rotor_from_plane_angle(B, angle):
     rotor : array, shape (4,)
         Rotor: (a, b_yz, b_zx, b_xy)
     """
-    a = np.cos(angle / 2.0)
-    sina = np.sin(angle / 2.0)
     B = norm_vector(B)
-    return np.hstack(((a,), sina * B))
+    xp = get_array_namespace(B)
+    a = xp.cos(angle / 2.0)
+    sina = xp.sin(angle / 2.0)
+    return xp.concat([xp.asarray([a]), sina * B])

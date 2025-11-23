@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._rot_log import cross_product_matrix
 
 
@@ -38,16 +39,27 @@ def left_jacobian_SO3(omega):
     left_jacobian_SO3_inv :
         Inverse left Jacobian of SO(3) at theta (angle of rotation).
     """
-    omega = np.asarray(omega)
-    theta = np.linalg.norm(omega)
-    if theta < np.finfo(float).eps:
+    omega = check_array_type(omega, "omega")
+    xp = get_array_namespace(omega)
+    theta = xp.linalg.vector_norm(omega)
+    
+    # Get epsilon for the array type
+    if hasattr(xp, 'finfo'):
+        eps = xp.finfo(xp.float64).eps
+    else:
+        eps = float(np.finfo(float).eps)
+    
+    if float(theta) < eps:
         return left_jacobian_SO3_series(omega, 10)
+    
     omega_unit = omega / theta
     omega_matrix = cross_product_matrix(omega_unit)
+    
+    theta_val = float(theta)
     return (
-        np.eye(3)
-        + (1.0 - math.cos(theta)) / theta * omega_matrix
-        + (1.0 - math.sin(theta) / theta) * np.dot(omega_matrix, omega_matrix)
+        xp.eye(3)
+        + (1.0 - math.cos(theta_val)) / theta_val * omega_matrix
+        + (1.0 - math.sin(theta_val) / theta_val) * xp.matmul(omega_matrix, omega_matrix)
     )
 
 
@@ -71,13 +83,14 @@ def left_jacobian_SO3_series(omega, n_terms):
     --------
     left_jacobian_SO3 : Left Jacobian of SO(3) at theta (angle of rotation).
     """
-    omega = np.asarray(omega)
-    J = np.eye(3)
-    pxn = np.eye(3)
+    omega = check_array_type(omega, "omega")
+    xp = get_array_namespace(omega)
+    J = xp.eye(3)
+    pxn = xp.eye(3)
     px = cross_product_matrix(omega)
     for n in range(n_terms):
-        pxn = np.dot(pxn, px) / (n + 2)
-        J += pxn
+        pxn = xp.matmul(pxn, px) / (n + 2)
+        J = J + pxn
     return J
 
 
@@ -110,17 +123,28 @@ def left_jacobian_SO3_inv(omega):
     left_jacobian_SO3_inv_series :
         Inverse left Jacobian of SO(3) at theta from Taylor series.
     """
-    omega = np.asarray(omega)
-    theta = np.linalg.norm(omega)
-    if theta < np.finfo(float).eps:
+    omega = check_array_type(omega, "omega")
+    xp = get_array_namespace(omega)
+    theta = xp.linalg.vector_norm(omega)
+    
+    # Get epsilon for the array type
+    if hasattr(xp, 'finfo'):
+        eps = xp.finfo(xp.float64).eps
+    else:
+        eps = float(np.finfo(float).eps)
+    
+    if float(theta) < eps:
         return left_jacobian_SO3_inv_series(omega, 10)
+    
     omega_unit = omega / theta
     omega_matrix = cross_product_matrix(omega_unit)
+    
+    theta_val = float(theta)
     return (
-        np.eye(3)
-        - 0.5 * omega_matrix * theta
-        + (1.0 - 0.5 * theta / np.tan(theta / 2.0))
-        * np.dot(omega_matrix, omega_matrix)
+        xp.eye(3)
+        - 0.5 * omega_matrix * theta_val
+        + (1.0 - 0.5 * theta_val / math.tan(theta_val / 2.0))
+        * xp.matmul(omega_matrix, omega_matrix)
     )
 
 
@@ -147,12 +171,13 @@ def left_jacobian_SO3_inv_series(omega, n_terms):
     """
     from scipy.special import bernoulli
 
-    omega = np.asarray(omega)
-    J_inv = np.eye(3)
-    pxn = np.eye(3)
+    omega = check_array_type(omega, "omega")
+    xp = get_array_namespace(omega)
+    J_inv = xp.eye(3)
+    pxn = xp.eye(3)
     px = cross_product_matrix(omega)
     b = bernoulli(n_terms + 1)
     for n in range(n_terms):
-        pxn = np.dot(pxn, px / (n + 1))
-        J_inv += b[n + 1] * pxn
+        pxn = xp.matmul(pxn, px / (n + 1))
+        J_inv = J_inv + b[n + 1] * pxn
     return J_inv

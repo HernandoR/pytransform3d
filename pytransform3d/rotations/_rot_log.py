@@ -4,6 +4,8 @@ import warnings
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
+
 
 def check_skew_symmetric_matrix(V, tolerance=1e-6, strict_check=True):
     """Input validation of a skew-symmetric matrix.
@@ -36,16 +38,22 @@ def check_skew_symmetric_matrix(V, tolerance=1e-6, strict_check=True):
     ValueError
         If input is invalid
     """
-    V = np.asarray(V, dtype=np.float64)
+    V = check_array_type(V, "V")
+    xp = get_array_namespace(V)
+    V = xp.asarray(V, dtype=xp.float64)
     if V.ndim != 2 or V.shape[0] != 3 or V.shape[1] != 3:
         raise ValueError(
             "Expected skew-symmetric matrix with shape (3, 3), "
             "got array-like object with shape %s" % (V.shape,)
         )
-    if not np.allclose(V.T, -V, atol=tolerance):
+    V_T = xp.matrix_transpose(V)
+    # Convert to numpy for allclose check
+    V_T_np = np.asarray(V_T) if not isinstance(V_T, np.ndarray) else V_T
+    minus_V_np = np.asarray(-V) if not isinstance(-V, np.ndarray) else -V
+    if not np.allclose(V_T_np, minus_V_np, atol=tolerance):
         error_msg = (
             "Expected skew-symmetric matrix, but it failed the test "
-            "V.T = %r\n-V = %r" % (V.T, -V)
+            "V.T = %r\n-V = %r" % (V_T_np, minus_V_np)
         )
         if strict_check:
             raise ValueError(error_msg)
@@ -98,7 +106,9 @@ def cross_product_matrix(v):
     V : array, shape (3, 3)
         Cross-product matrix
     """
-    return np.array(
+    v = check_array_type(v, "v")
+    xp = get_array_namespace(v)
+    return xp.asarray(
         [[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]]
     )
 
