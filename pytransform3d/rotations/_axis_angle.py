@@ -147,8 +147,10 @@ def compact_axis_angle_near_pi(a, tolerance=1e-6):
     near_pi : bool
         Angle is near pi.
     """
-    theta = np.linalg.norm(a)
-    return abs(theta - np.pi) < tolerance
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
+    theta = xp.linalg.vector_norm(a)
+    return bool(abs(float(theta) - xp.pi) < tolerance)
 
 
 def assert_axis_angle_equal(a1, a2, *args, **kwargs):
@@ -178,11 +180,15 @@ def assert_axis_angle_equal(a1, a2, *args, **kwargs):
     """
     a1 = norm_axis_angle(a1)
     a2 = norm_axis_angle(a2)
+    xp = get_array_namespace(a1, a2)
     # required despite normalization in case of 180 degree rotation
-    if np.any(np.sign(a1) != np.sign(a2)):
+    if xp.any(xp.sign(a1) != xp.sign(a2)):
         a1 = -a1
         a1 = norm_axis_angle(a1)
-    assert_array_almost_equal(a1, a2, *args, **kwargs)
+    # Convert to numpy for assertion
+    a1_np = np.asarray(a1) if not isinstance(a1, np.ndarray) else a1
+    a2_np = np.asarray(a2) if not isinstance(a2, np.ndarray) else a2
+    assert_array_almost_equal(a1_np, a2_np, *args, **kwargs)
 
 
 def assert_compact_axis_angle_equal(a1, a2, *args, **kwargs):
@@ -209,18 +215,25 @@ def assert_compact_axis_angle_equal(a1, a2, *args, **kwargs):
         Positional arguments that will be passed to
         `assert_array_almost_equal`
     """
-    angle1 = np.linalg.norm(a1)
-    angle2 = np.linalg.norm(a2)
+    a1 = check_array_type(a1, "a1")
+    a2 = check_array_type(a2, "a2")
+    xp = get_array_namespace(a1, a2)
+    
+    angle1 = xp.linalg.vector_norm(a1)
+    angle2 = xp.linalg.vector_norm(a2)
     # required despite normalization in case of 180 degree rotation
     if (
-        abs(angle1) == np.pi
-        and abs(angle2) == np.pi
-        and any(np.sign(a1) != np.sign(a2))
+        abs(float(angle1)) == xp.pi
+        and abs(float(angle2)) == xp.pi
+        and xp.any(xp.sign(a1) != xp.sign(a2))
     ):
         a1 = -a1
     a1 = norm_compact_axis_angle(a1)
     a2 = norm_compact_axis_angle(a2)
-    assert_array_almost_equal(a1, a2, *args, **kwargs)
+    # Convert to numpy for assertion
+    a1_np = np.asarray(a1) if not isinstance(a1, np.ndarray) else a1
+    a2_np = np.asarray(a2) if not isinstance(a2, np.ndarray) else a2
+    assert_array_almost_equal(a1_np, a2_np, *args, **kwargs)
 
 
 def axis_angle_from_two_directions(a, b):
@@ -246,16 +259,25 @@ def axis_angle_from_two_directions(a, b):
     """
     a = norm_vector(a)
     b = norm_vector(b)
-    cos_angle = a.dot(b)
-    if abs(-1.0 - cos_angle) < eps:
+    xp = get_array_namespace(a, b)
+    
+    cos_angle = xp.sum(a * b)
+    if abs(-1.0 - float(cos_angle)) < eps:
         # For 180 degree rotations we have an infinite number of solutions,
         # but we have to pick one axis.
         axis = perpendicular_to_vector(a)
     else:
-        axis = np.cross(a, b)
-    aa = np.empty(4)
-    aa[:3] = norm_vector(axis)
-    aa[3] = np.arccos(max(min(cos_angle, 1.0), -1.0))
+        # Use linalg.cross if available (PyTorch), otherwise use cross
+        if hasattr(xp.linalg, 'cross'):
+            axis = xp.linalg.cross(a, b)
+        else:
+            axis = xp.cross(a, b)
+    
+    axis_norm = norm_vector(axis)
+    # Clamp cos_angle to [-1, 1] to avoid numerical issues with arccos
+    cos_angle_clamped = xp.clip(cos_angle, -1.0, 1.0)
+    angle = xp.acos(cos_angle_clamped)
+    aa = xp.concat([axis_norm, xp.asarray([angle])])
     return norm_axis_angle(aa)
 
 
@@ -292,11 +314,15 @@ def matrix_from_axis_angle(a):
         Rotation matrix
     """
     a = check_axis_angle(a)
-    ux, uy, uz, theta = a
-    c = math.cos(theta)
-    s = math.sin(theta)
+    xp = get_array_namespace(a)
+    
+    ux, uy, uz = a[0], a[1], a[2]
+    theta = a[3]
+    c = math.cos(float(theta))
+    s = math.sin(float(theta))
     ci = 1.0 - c
-    R = np.array(
+    
+    R = xp.asarray(
         [
             [ci * ux * ux + c, ci * ux * uy - uz * s, ci * ux * uz + uy * s],
             [ci * uy * ux + uz * s, ci * uy * uy + c, ci * uy * uz - ux * s],
@@ -305,9 +331,9 @@ def matrix_from_axis_angle(a):
     )
 
     # This is equivalent to
-    # R = (np.eye(3) * np.cos(a[3]) +
-    #      (1.0 - np.cos(a[3])) * a[:3, np.newaxis].dot(a[np.newaxis, :3]) +
-    #      cross_product_matrix(a[:3]) * np.sin(a[3]))
+    # R = (xp.eye(3) * xp.cos(a[3]) +
+    #      (1.0 - xp.cos(a[3])) * a[:3, xp.newaxis].dot(a[xp.newaxis, :3]) +
+    #      cross_product_matrix(a[:3]) * xp.sin(a[3]))
     # or
     # w = cross_product_matrix(a[:3])
     # R = np.eye(3) + np.sin(a[3]) * w + (1.0 - np.cos(a[3])) * w.dot(w)
@@ -366,13 +392,15 @@ def axis_angle_from_compact_axis_angle(a):
         constrained to [0, pi].
     """
     a = check_compact_axis_angle(a)
-    angle = np.linalg.norm(a)
+    xp = get_array_namespace(a)
+    
+    angle = xp.linalg.vector_norm(a)
 
-    if angle == 0.0:
-        return np.array([1.0, 0.0, 0.0, 0.0])
+    if float(angle) == 0.0:
+        return xp.asarray([1.0, 0.0, 0.0, 0.0])
 
     axis = a / angle
-    return np.hstack((axis, (angle,)))
+    return xp.concat([axis, xp.asarray([angle])])
 
 
 def compact_axis_angle(a):
@@ -419,12 +447,13 @@ def quaternion_from_axis_angle(a):
         Unit quaternion to represent rotation: (w, x, y, z)
     """
     a = check_axis_angle(a)
+    xp = get_array_namespace(a)
+    
     half_angle = 0.5 * a[3]
 
-    q = np.empty(4)
-    q[0] = np.cos(half_angle)
-    q[1:] = np.sin(half_angle) * a[:3]
-    return q
+    w = xp.cos(half_angle)
+    xyz = xp.sin(half_angle) * a[:3]
+    return xp.concat([xp.asarray([w]), xyz])
 
 
 def quaternion_from_compact_axis_angle(a):
@@ -465,4 +494,5 @@ def mrp_from_axis_angle(a):
         Modified Rodrigues parameters.
     """
     a = check_axis_angle(a)
-    return np.tan(0.25 * a[3]) * a[:3]
+    xp = get_array_namespace(a)
+    return xp.tan(0.25 * a[3]) * a[:3]
