@@ -63,6 +63,18 @@ Migration is being done systematically, one module at a time:
 - `axis_angle_from_matrix()` - Convert rotation matrix to axis-angle
 - `compact_axis_angle_from_matrix()` - Convert to compact axis-angle
 
+#### `rotations/_euler.py` (4 functions) ✅
+- `norm_euler()` - Normalize Euler angle range
+- `euler_near_gimbal_lock()` - Check if Euler angles are near gimbal lock
+- `matrix_from_euler()` - Compute rotation matrix from Euler angles
+- `assert_euler_equal()` - Assert two Euler angles are equal
+
+#### `rotations/_mrp.py` (4 functions) ✅
+- `check_mrp()` - Input validation of modified Rodrigues parameters
+- `norm_mrp()` - Normalize MRP angle range
+- `mrp_near_singularity()` - Check if MRPs are near singularity
+- `mrp_double()` - Get alternative MRP representation
+
 #### `batch_rotations/_utils.py` (3 functions) ✅
 - `norm_vectors()` - Batch vector normalization
 - `angles_between_vectors()` - Batch angle computation
@@ -101,16 +113,15 @@ Some functions already support array API:
 
 ### ⏳ Pending Modules
 
-#### `rotations` (Remaining ~70 functions)
-- `_euler.py` - Euler angle operations (~10 functions)
-- `_mrp.py` - Modified Rodrigues parameters (~8 functions)
-- `_rotors.py` - Rotor operations (~8 functions)
+#### `rotations` (Remaining ~60 functions)
 - `_slerp.py` - Spherical interpolation (~6 functions)
+- `_rotors.py` - Rotor operations (~8 functions)
 - `_rot_log.py` - Rotation logarithm (~4 functions)
 - `_random.py` - Random rotations (~5 functions)
 - `_jacobians.py` - Jacobian matrices (~4 functions)
 - `_polar_decomp.py` - Polar decomposition (~1 function)
-- Remaining functions in `_quaternion.py` and `_axis_angle.py`
+- Remaining functions in `_quaternion.py` (~15 functions)
+- Remaining functions in `_axis_angle.py` (~11 functions)
 
 #### Other Core Modules
 - `transformations/` - SE(3) transformations
