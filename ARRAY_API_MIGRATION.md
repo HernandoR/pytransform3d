@@ -129,7 +129,41 @@ All functions migrated:
 - `rotor_slerp()` - SLERP for rotors (uses dependent functions)
 - `slerp_weights()` - Compute interpolation weights
 
-### 🔄 In Progress
+#### `rotations/_rotors.py` (7/7 functions completed, 100%) ✅
+All functions migrated:
+- `check_rotor()` - Rotor validation
+- `wedge()` - Outer/exterior product
+- `geometric_product()` - Geometric product of vectors
+- `rotor_reverse()` - Rotor inversion
+- `matrix_from_rotor()` - Convert rotor to matrix
+- `rotor_from_two_directions()` - Construct rotor from directions
+- `rotor_from_plane_angle()` - Construct rotor from plane and angle
+
+#### `rotations/_rot_log.py` (2/2 functions completed, 100%) ✅
+All functions migrated:
+- `check_skew_symmetric_matrix()` - Validation
+- `cross_product_matrix()` - Generate cross-product matrix
+
+#### `rotations/_random.py` (5/5 functions completed, 100%) ✅
+All functions migrated:
+- `random_vector()` - Random nd vector
+- `random_axis_angle()` - Random axis-angle
+- `random_compact_axis_angle()` - Random compact form
+- `random_quaternion()` - Random quaternion
+- `random_matrix()` - Random rotation matrix
+
+#### `rotations/_jacobians.py` (4/4 functions completed, 100%) ✅
+All functions migrated:
+- `left_jacobian_SO3()` - Left Jacobian of SO(3)
+- `left_jacobian_SO3_series()` - Taylor series approximation
+- `left_jacobian_SO3_inv()` - Inverse left Jacobian
+- `left_jacobian_SO3_inv_series()` - Inverse with series
+
+#### `rotations/_polar_decomp.py` (1/1 function completed, 100%) ✅
+All functions migrated:
+- `robust_polar_decomposition()` - Iterative orthonormalization
+
+### 🎉 ROTATIONS MODULE COMPLETE!
 
 #### `batch_rotations` (Partially complete)
 Some functions already support array API:
