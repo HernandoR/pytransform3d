@@ -15,13 +15,15 @@
 
 ## Environment Management with uv
 
-This project uses **uv** for dependency management. uv is a fast Python package installer and resolver.
+This project uses **uv** for dependency management. uv is an extremely fast Python package and project manager written in Rust. It replaces pip, pip-tools, poetry, pyenv, virtualenv, and more. It includes both a pip-compatible CLI (prepend `uv` to pip commands) and a first-class project interface with lockfiles and workspace support.
 
 ### Installing uv
 If uv is not installed:
 ```bash
 pip install uv
 ```
+
+For more installation options, see [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Key uv Commands
 
@@ -45,6 +47,17 @@ uv pip install package-name
 ```
 
 **Critical**: The package MUST be installed in editable mode (`uv pip install -e .`) before running tests, otherwise imports will fail with `ModuleNotFoundError: No module named 'pytransform3d'`.
+
+### uv Capabilities
+
+uv provides several advantages for this project:
+- **Fast dependency resolution**: Written in Rust for performance
+- **Lockfile support**: `uv.lock` ensures reproducible environments
+- **Pip compatibility**: Can use `uv pip` as a drop-in replacement for pip
+- **Project management**: Handles virtual environments automatically with `uv run`
+- **Workspace support**: Manages complex project structures
+
+For comprehensive documentation, see the [uv documentation](https://docs.astral.sh/uv/) or [uv for LLMs](https://docs.astral.sh/uv/llms.txt).
 
 ## Build, Test, and Validation
 
