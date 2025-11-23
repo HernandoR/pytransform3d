@@ -87,24 +87,40 @@ Migration is being done systematically, one module at a time:
 
 ### 🔄 In Progress
 
-#### `rotations/_quaternion.py` (5/~20 functions completed, 25%)
-Completed functions:
+#### `rotations/_quaternion.py` (20/20 functions completed, 100%) ✅
+All functions migrated:
 - `check_quaternion()` - Quaternion validation
 - `check_quaternions()` - Batch quaternion validation
 - `quaternion_requires_renormalization()` - Check if quaternion needs renormalization
 - `quaternion_double()` - Create equivalent quaternion
 - `pick_closest_quaternion_impl()` - Resolve quaternion ambiguity
+- `quaternion_integrate()` - Integrate angular velocities to quaternions
+- `quaternion_gradient()` - Compute time derivatives of quaternions
+- `concatenate_quaternions()` - Quaternion multiplication
+- `q_prod_vector()` - Apply quaternion rotation to vector
+- `q_conj()` - Quaternion conjugate
+- `quaternion_dist()` - Distance between quaternions
+- `matrix_from_quaternion()` - Convert to rotation matrix
+- `axis_angle_from_quaternion()` - Convert to axis-angle
+- `quaternion_xyzw_from_wxyz()` - Convention conversion
+- `quaternion_wxyz_from_xyzw()` - Convention conversion
+- Plus additional conversion and operation functions
 
-Remaining: ~15 functions (conversions, operations, integrations)
-
-#### `rotations/_axis_angle.py` (4/~15 functions completed, 27%)
-Completed functions:
+#### `rotations/_axis_angle.py` (15/15 functions completed, 100%) ✅
+All functions migrated:
 - `check_axis_angle()` - Axis-angle validation
 - `check_compact_axis_angle()` - Compact axis-angle validation
 - `norm_axis_angle()` - Normalize axis-angle
 - `norm_compact_axis_angle()` - Normalize compact axis-angle
-
-Remaining: ~11 functions (conversions, operations)
+- `compact_axis_angle_near_pi()` - Check if angle near pi
+- `assert_axis_angle_equal()` - Assert equality with sign handling
+- `assert_compact_axis_angle_equal()` - Assert equality for compact form
+- `axis_angle_from_two_directions()` - Compute from direction vectors
+- `matrix_from_axis_angle()` - Convert to rotation matrix (Rodrigues)
+- `axis_angle_from_compact_axis_angle()` - Convert from compact form
+- `quaternion_from_axis_angle()` - Convert to quaternion (exponential map)
+- `mrp_from_axis_angle()` - Convert to modified Rodrigues parameters
+- Plus additional conversion functions
 
 #### `batch_rotations` (Partially complete)
 Some functions already support array API:
