@@ -365,3 +365,63 @@ class TestRotationsMatrixArrayAPI:
         result = axis_angle_from_matrix(R)
         assert isinstance(result, torch.Tensor)
         assert result.shape == (4,)
+
+
+class TestRotationsEulerArrayAPI:
+    """Test rotations._euler functions with different array backends."""
+
+    def test_norm_euler_numpy(self):
+        """Test norm_euler with numpy."""
+        from pytransform3d.rotations import norm_euler
+        
+        e = np.array([0.1, 0.2, 0.3])
+        result = norm_euler(e, 0, 1, 2)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3,)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_norm_euler_torch(self):
+        """Test norm_euler with torch."""
+        from pytransform3d.rotations import norm_euler
+        
+        e = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
+        result = norm_euler(e, 0, 1, 2)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3,)
+
+    def test_matrix_from_euler_numpy(self):
+        """Test matrix_from_euler with numpy."""
+        from pytransform3d.rotations import matrix_from_euler
+        
+        e = np.array([0.1, 0.2, 0.3])
+        result = matrix_from_euler(e, 0, 1, 2, True)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 3)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_matrix_from_euler_torch(self):
+        """Test matrix_from_euler with torch."""
+        from pytransform3d.rotations import matrix_from_euler
+        
+        e = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
+        result = matrix_from_euler(e, 0, 1, 2, True)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3, 3)
+
+    def test_euler_near_gimbal_lock_numpy(self):
+        """Test euler_near_gimbal_lock with numpy."""
+        from pytransform3d.rotations import euler_near_gimbal_lock
+        
+        e = np.array([0.1, 0.0, 0.3])  # Near gimbal lock
+        result = euler_near_gimbal_lock(e, 0, 1, 0, tolerance=0.1)
+        assert isinstance(result, (bool, np.bool_))
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_euler_near_gimbal_lock_torch(self):
+        """Test euler_near_gimbal_lock with torch."""
+        from pytransform3d.rotations import euler_near_gimbal_lock
+        
+        e = torch.tensor([0.1, 0.0, 0.3], dtype=torch.float64)
+        result = euler_near_gimbal_lock(e, 0, 1, 0, tolerance=0.1)
+        # Result can be bool, np.bool_, or torch.Tensor
+        assert result is not None
