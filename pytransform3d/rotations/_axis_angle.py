@@ -5,6 +5,7 @@ import math
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
+from ..array_api import get_array_namespace, check_array_type
 from ._angle import norm_angle
 from ._constants import eps
 from ._utils import norm_vector, perpendicular_to_vector
@@ -28,7 +29,9 @@ def check_axis_angle(a):
     ValueError
         If input is invalid
     """
-    a = np.asarray(a, dtype=np.float64)
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
+    a = xp.asarray(a, dtype=xp.float64)
     if a.ndim != 1 or a.shape[0] != 4:
         raise ValueError(
             "Expected axis and angle in array with shape (4,), "
@@ -55,7 +58,9 @@ def check_compact_axis_angle(a):
     ValueError
         If input is invalid
     """
-    a = np.asarray(a, dtype=np.float64)
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
+    a = xp.asarray(a, dtype=xp.float64)
     if a.ndim != 1 or a.shape[0] != 3:
         raise ValueError(
             "Expected axis and angle in array with shape (3,), "
@@ -79,12 +84,14 @@ def norm_axis_angle(a):
         of the axis vector is 1 and the angle is in [0, pi). No rotation
         is represented by [1, 0, 0, 0].
     """
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
     angle = a[3]
-    norm = np.linalg.norm(a[:3])
+    norm = xp.linalg.vector_norm(a[:3])
     if angle == 0.0 or norm == 0.0:
-        return np.array([1.0, 0.0, 0.0, 0.0])
+        return xp.asarray([1.0, 0.0, 0.0, 0.0])
 
-    res = np.empty(4)
+    res = xp.empty(4, dtype=a.dtype if hasattr(a, 'dtype') else xp.float64)
     res[:3] = a[:3] / norm
 
     angle = norm_angle(angle)
@@ -111,9 +118,11 @@ def norm_compact_axis_angle(a):
         Axis of rotation and rotation angle: angle * (x, y, z).
         The angle is in [0, pi). No rotation is represented by [0, 0, 0].
     """
-    angle = np.linalg.norm(a)
+    a = check_array_type(a, "a")
+    xp = get_array_namespace(a)
+    angle = xp.linalg.vector_norm(a)
     if angle == 0.0:
-        return np.zeros(3)
+        return xp.zeros(3, dtype=a.dtype if hasattr(a, 'dtype') else xp.float64)
     axis = a / angle
     return axis * norm_angle(angle)
 
