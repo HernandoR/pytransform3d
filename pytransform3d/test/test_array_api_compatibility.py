@@ -425,3 +425,62 @@ class TestRotationsEulerArrayAPI:
         result = euler_near_gimbal_lock(e, 0, 1, 0, tolerance=0.1)
         # Result can be bool, np.bool_, or torch.Tensor
         assert result is not None
+
+
+class TestRotationsMRPArrayAPI:
+    """Test rotations._mrp functions with different array backends."""
+
+    def test_check_mrp_numpy(self):
+        """Test check_mrp with numpy."""
+        from pytransform3d.rotations import check_mrp
+        
+        mrp = np.array([0.1, 0.2, 0.3])
+        result = check_mrp(mrp)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3,)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_check_mrp_torch(self):
+        """Test check_mrp with torch."""
+        from pytransform3d.rotations import check_mrp
+        
+        mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
+        result = check_mrp(mrp)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3,)
+
+    def test_mrp_double_numpy(self):
+        """Test mrp_double with numpy."""
+        from pytransform3d.rotations import mrp_double
+        
+        mrp = np.array([0.1, 0.2, 0.3])
+        result = mrp_double(mrp)
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3,)
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_mrp_double_torch(self):
+        """Test mrp_double with torch."""
+        from pytransform3d.rotations import mrp_double
+        
+        mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
+        result = mrp_double(mrp)
+        assert isinstance(result, torch.Tensor)
+        assert result.shape == (3,)
+
+    def test_mrp_near_singularity_numpy(self):
+        """Test mrp_near_singularity with numpy."""
+        from pytransform3d.rotations import mrp_near_singularity
+        
+        mrp = np.array([0.1, 0.2, 0.3])
+        result = mrp_near_singularity(mrp)
+        assert result is not None
+
+    @pytest.mark.skipif(not HAS_TORCH, reason="PyTorch not available")
+    def test_mrp_near_singularity_torch(self):
+        """Test mrp_near_singularity with torch."""
+        from pytransform3d.rotations import mrp_near_singularity
+        
+        mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
+        result = mrp_near_singularity(mrp)
+        assert result is not None
