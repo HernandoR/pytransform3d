@@ -13,8 +13,28 @@ dependencies = [
     "pydot>=3.0.4",
     "scipy>=1.10.1",
     "trimesh>=4.6.8",
+    "array-api-compat>=1.9",
+]
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.5",
+    "pytest-cov>=5.0.0",
+]
+all = [
+    "pydot>=3.0.4",
+    "trimesh>=4.6.8",
+    "pycollada>=0.9",
+    "open3d>=0.19.0",
+]
+doc = [
+    "numpydoc>=0.0.1",
+    "sphinx>=0.0.6",
+    "sphinx-gallery>=0.0.1",
+    "pydata-sphinx-theme>=0.0.1",
+    "sphinxcontrib.video>=0.0.1",
 ]
 
+[tool.uv]
 
 [tool.black]
 line-length = 80
