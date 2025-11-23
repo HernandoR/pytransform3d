@@ -85,8 +85,6 @@ Migration is being done systematically, one module at a time:
 - `plot_axis_angle()` - Requires NumPy arrays
 - `plot_bivector()` - Requires NumPy arrays
 
-### 🔄 In Progress
-
 #### `rotations/_quaternion.py` (20/20 functions completed, 100%) ✅
 All functions migrated:
 - `check_quaternion()` - Quaternion validation
@@ -122,6 +120,17 @@ All functions migrated:
 - `mrp_from_axis_angle()` - Convert to modified Rodrigues parameters
 - Plus additional conversion functions
 
+#### `rotations/_slerp.py` (6/6 functions completed, 100%) ✅
+All functions migrated:
+- `matrix_slerp()` - SLERP for rotation matrices
+- `matrix_power()` - Matrix power (uses dependent functions)
+- `axis_angle_slerp()` - SLERP for axis-angle representation
+- `quaternion_slerp()` - SLERP for quaternions (uses dependent functions)
+- `rotor_slerp()` - SLERP for rotors (uses dependent functions)
+- `slerp_weights()` - Compute interpolation weights
+
+### 🔄 In Progress
+
 #### `batch_rotations` (Partially complete)
 Some functions already support array API:
 - `batch_concatenate_quaternions()`
@@ -129,10 +138,9 @@ Some functions already support array API:
 
 ### ⏳ Pending Modules
 
-#### `rotations` (Remaining ~60 functions)
-- `_slerp.py` - Spherical interpolation (~6 functions)
-- `_rotors.py` - Rotor operations (~8 functions)
-- `_rot_log.py` - Rotation logarithm (~4 functions)
+#### `rotations` (Remaining ~30 functions)
+- `_rotors.py` - Rotor operations (~10 functions)
+- `_rot_log.py` - Rotation logarithm (~2 functions)
 - `_random.py` - Random rotations (~5 functions)
 - `_jacobians.py` - Jacobian matrices (~4 functions)
 - `_polar_decomp.py` - Polar decomposition (~1 function)
