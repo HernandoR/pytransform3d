@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._axis_angle import check_axis_angle, matrix_from_compact_axis_angle
 from ._matrix import compact_axis_angle_from_matrix
 from ._quaternion import check_quaternion, pick_closest_quaternion_impl
@@ -50,8 +51,12 @@ def matrix_slerp(start, end, t):
     pytransform3d.transformations.pq_slerp :
         SLERP for position + quaternion.
     """
-    end2start = np.dot(np.transpose(start), end)
-    return np.dot(start, matrix_power(end2start, t))
+    start = check_array_type(start, "start")
+    end = check_array_type(end, "end")
+    xp = get_array_namespace(start, end)
+    
+    end2start = xp.matmul(xp.matrix_transpose(start), end)
+    return xp.matmul(start, matrix_power(end2start, t))
 
 
 def matrix_power(R, t):
@@ -113,11 +118,13 @@ def axis_angle_slerp(start, end, t):
     """
     start = check_axis_angle(start)
     end = check_axis_angle(end)
+    xp = get_array_namespace(start, end)
+    
     angle = angle_between_vectors(start[:3], end[:3])
     w1, w2 = slerp_weights(angle, t)
-    w1 = np.array([w1, w1, w1, (1.0 - t)])
-    w2 = np.array([w2, w2, w2, t])
-    return w1 * start + w2 * end
+    w1_vec = xp.asarray([w1, w1, w1, (1.0 - t)])
+    w2_vec = xp.asarray([w2, w2, w2, t])
+    return w1_vec * start + w2_vec * end
 
 
 def quaternion_slerp(start, end, t, shortest_path=False):
@@ -227,9 +234,22 @@ def slerp_weights(angle, t):
     w2 : float or array, shape (n_steps,)
         Weights for quaternion 2
     """
-    if angle == 0.0:
-        return np.ones_like(t), np.zeros_like(t)
-    return (
-        np.sin((1.0 - t) * angle) / np.sin(angle),
-        np.sin(t * angle) / np.sin(angle),
-    )
+    # Handle scalar angle and potentially array t
+    if isinstance(t, (int, float)):
+        t_val = t
+        if angle == 0.0:
+            return 1.0, 0.0
+        return (
+            np.sin((1.0 - t_val) * angle) / np.sin(angle),
+            np.sin(t_val * angle) / np.sin(angle),
+        )
+    else:
+        # t is array-like
+        t = check_array_type(t, "t")
+        xp = get_array_namespace(t)
+        if angle == 0.0:
+            return xp.ones_like(t), xp.zeros_like(t)
+        return (
+            xp.sin((1.0 - t) * angle) / xp.sin(angle),
+            xp.sin(t * angle) / xp.sin(angle),
+        )

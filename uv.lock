@@ -1427,6 +1427,7 @@ dev = [
     { name = "graphviz" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytransform3d", extra = ["all", "doc", "test"] },
 ]
 
 [package.metadata]
@@ -1462,6 +1463,7 @@ dev = [
     { name = "graphviz", specifier = ">=0.21" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytransform3d", extras = ["all", "test", "doc"], editable = "." },
 ]
 
 [[package]]

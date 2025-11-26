@@ -1,6 +1,7 @@
-"""Transformation matrices."""
+"""Transformation matrices (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # kept for scalar helpers
+from ..array_api import get_array_namespace
 
 from pytransform3d.batch_rotations import (
     quaternions_from_matrices,
@@ -28,18 +29,16 @@ def invert_transforms(A2Bs):
         Invert one transformation.
     """
     A2Bs = np.asarray(A2Bs)
+    xp = get_array_namespace(A2Bs)
     instances_shape = A2Bs.shape[:-2]
-    B2As = np.empty_like(A2Bs)
+    B2As = xp.empty_like(A2Bs)
     # ( R t )^-1   ( R^T -R^T*t )
     # ( 0 1 )    = ( 0    1     )
     B2As[..., :3, :3] = A2Bs[..., :3, :3].transpose(
         tuple(range(A2Bs.ndim - 2)) + (A2Bs.ndim - 1, A2Bs.ndim - 2)
     )
-    B2As[..., :3, 3] = np.einsum(
-        "nij,nj->ni",
-        -B2As[..., :3, :3].reshape(-1, 3, 3),
-        A2Bs[..., :3, 3].reshape(-1, 3),
-    ).reshape(*(instances_shape + (3,)))
+    t = A2Bs[..., :3, 3]
+    B2As[..., :3, 3] = (-(B2As[..., :3, :3] @ t[..., None]))[..., :, 0]
     B2As[..., 3, :3] = 0.0
     B2As[..., 3, 3] = 1.0
     return B2As
@@ -72,7 +71,10 @@ def concat_one_to_many(A2B, B2Cs):
     pytransform3d.transformations.concat :
         Concatenate two transformations.
     """
-    return np.einsum("nij,jk->nik", B2Cs, A2B)
+    B2Cs = np.asarray(B2Cs)
+    A2B = np.asarray(A2B)
+    xp = get_array_namespace(B2Cs, A2B)
+    return xp.matmul(B2Cs, A2B)
 
 
 def concat_many_to_one(A2Bs, B2C):
@@ -102,7 +104,10 @@ def concat_many_to_one(A2Bs, B2C):
     pytransform3d.transformations.concat :
         Concatenate two transformations.
     """
-    return np.einsum("ij,njk->nik", B2C, A2Bs)
+    A2Bs = np.asarray(A2Bs)
+    B2C = np.asarray(B2C)
+    xp = get_array_namespace(A2Bs, B2C)
+    return xp.matmul(B2C, A2Bs)
 
 
 def concat_many_to_many(A2B, B2C):
@@ -132,7 +137,16 @@ def concat_many_to_many(A2B, B2C):
     pytransform3d.transformations.concat :
         Concatenate two transformations.
     """
-    return np.einsum("ijk,ikl->ijl", B2C, A2B)
+    A2B = np.asarray(A2B)
+    B2C = np.asarray(B2C)
+    if A2B.ndim != 3 or B2C.ndim != 3:
+        raise ValueError("Expected both inputs to have ndim 3")
+    if A2B.shape[0] != B2C.shape[0]:
+        raise ValueError(
+            f"Batch size mismatch: A2B has {A2B.shape[0]} transforms, B2C has {B2C.shape[0]}"
+        )
+    xp = get_array_namespace(A2B, B2C)
+    return xp.matmul(B2C, A2B)
 
 
 def concat_dynamic(A2B, B2C):
@@ -170,8 +184,9 @@ def concat_dynamic(A2B, B2C):
     """
     A2B = np.asarray(A2B)
     B2C = np.asarray(B2C)
+    xp = get_array_namespace(A2B, B2C)
     if B2C.ndim == 2 and A2B.ndim == 2:
-        return B2C.dot(A2B)
+        return xp.matmul(B2C, A2B)
     elif B2C.ndim == 2 and A2B.ndim == 3:
         return concat_many_to_one(A2B, B2C)
     elif B2C.ndim == 3 and A2B.ndim == 2:
@@ -200,8 +215,9 @@ def pqs_from_transforms(A2Bs):
         order (x, y, z, qw, qx, qy, qz) for each step
     """
     A2Bs = np.asarray(A2Bs)
+    xp = get_array_namespace(A2Bs)
     instances_shape = A2Bs.shape[:-2]
-    P = np.empty(instances_shape + (7,))
+    P = xp.empty(instances_shape + (7,), dtype=A2Bs.dtype)
     P[..., :3] = A2Bs[..., :3, 3]
     quaternions_from_matrices(A2Bs[..., :3, :3], out=P[..., 3:])
     return P
@@ -225,13 +241,14 @@ def exponential_coordinates_from_transforms(A2Bs):
         Theta is the rotation angle and h * theta the translation.
     """
     A2Bs = np.asarray(A2Bs)
+    xp = get_array_namespace(A2Bs)
 
     instances_shape = A2Bs.shape[:-2]
 
     Rs = A2Bs[..., :3, :3]
     ps = A2Bs[..., :3, 3]
 
-    traces = np.einsum("nii", Rs.reshape(-1, 3, 3))
+    traces = (Rs[..., 0, 0] + Rs[..., 1, 1] + Rs[..., 2, 2]).reshape(-1)
     if instances_shape:  # noqa: SIM108
         traces = traces.reshape(*instances_shape)
     else:
@@ -240,7 +257,7 @@ def exponential_coordinates_from_transforms(A2Bs):
         # out[False, n] = value will not assign value to out[n]
         traces = traces[0]
 
-    Sthetas = np.empty(instances_shape + (6,))
+    Sthetas = xp.empty(instances_shape + (6,), dtype=A2Bs.dtype)
 
     omega_thetas = axis_angles_from_matrices(Rs, traces=traces)
     Sthetas[..., :3] = omega_thetas[..., :3]
@@ -266,9 +283,9 @@ def exponential_coordinates_from_transforms(A2Bs):
     #     + p2*(-o0**2*(-0.5/tan(0.5*t) + 1/t)
     #           - o1**2*(-0.5/tan(0.5*t) + 1/t) + 1/t)
 
-    thetas = np.maximum(thetas, np.finfo(float).tiny)
+    thetas = xp.maximum(thetas, np.finfo(float).tiny)
     ti = 1.0 / thetas
-    tan_term = -0.5 / np.tan(thetas / 2.0) + ti
+    tan_term = -0.5 / xp.tan(thetas / 2.0) + ti
     o0 = omega_thetas[..., 0]
     o1 = omega_thetas[..., 1]
     o2 = omega_thetas[..., 2]
@@ -297,7 +314,7 @@ def exponential_coordinates_from_transforms(A2Bs):
         + p2 * ((-o00 - o11) * tan_term + ti)
     )
 
-    Sthetas *= thetas[..., np.newaxis]
+    Sthetas *= thetas[..., None]
 
     ind_only_translation = traces >= 3.0 - np.finfo(float).eps
     Sthetas[ind_only_translation, :3] = 0.0
@@ -321,8 +338,9 @@ def dual_quaternions_from_transforms(A2Bs):
         (pw, px, py, pz, qw, qx, qy, qz)
     """
     A2Bs = np.asarray(A2Bs)
+    xp = get_array_namespace(A2Bs)
     instances_shape = A2Bs.shape[:-2]
-    out = np.empty(instances_shape + (8,))
+    out = xp.empty(instances_shape + (8,), dtype=A2Bs.dtype)
 
     # orientation quaternion
     out[..., :4] = quaternions_from_matrices(A2Bs[..., :3, :3])

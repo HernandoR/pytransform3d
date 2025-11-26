@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace
 from ._screws import transform_from_exponential_coordinates
 from ._transform import check_transform, exponential_coordinates_from_transform
 from ..rotations import (
@@ -46,7 +47,8 @@ def invert_transform(A2B, strict_check=True, check=True):
     # inversion with numpy:
     # ( R t )^-1   ( R^T -R^T*t )
     # ( 0 1 )    = ( 0    1     )
-    return np.linalg.inv(A2B)
+    xp = get_array_namespace(A2B)
+    return xp.linalg.inv(A2B)
 
 
 def vector_to_point(v):
@@ -77,7 +79,9 @@ def vector_to_point(v):
     pytransform3d.transformations.vectors_to_directions
         Convert 3D vectors to directions in homogeneous coordinates.
     """
-    return np.hstack((v, 1))
+    v = np.asarray(v)
+    xp = get_array_namespace(v)
+    return xp.concat([v, xp.asarray([1], dtype=v.dtype)], axis=0)
 
 
 def vectors_to_points(V):
@@ -108,7 +112,12 @@ def vectors_to_points(V):
     pytransform3d.transformations.vectors_to_directions
         Convert 3D vectors to directions in homogeneous coordinates.
     """
-    return np.hstack((V, np.ones((len(V), 1))))
+    V = np.asarray(V)
+    xp = get_array_namespace(V)
+    ones = xp.ones(
+        (V.shape[0], 1), dtype=V.dtype, device=getattr(V, "device", None)
+    )
+    return xp.concat([V, ones], axis=1)
 
 
 def vector_to_direction(v):
@@ -139,7 +148,9 @@ def vector_to_direction(v):
     pytransform3d.transformations.vectors_to_directions
         Convert 3D vectors to directions in homogeneous coordinates.
     """
-    return np.hstack((v, 0))
+    v = np.asarray(v)
+    xp = get_array_namespace(v)
+    return xp.concat([v, xp.asarray([0], dtype=v.dtype)], axis=0)
 
 
 def vectors_to_directions(V):
@@ -170,7 +181,12 @@ def vectors_to_directions(V):
     pytransform3d.transformations.vector_to_direction
         Convert one 3D vector to a direction in homogeneous coordinates.
     """
-    return np.hstack((V, np.zeros((len(V), 1))))
+    V = np.asarray(V)
+    xp = get_array_namespace(V)
+    zeros = xp.zeros(
+        (V.shape[0], 1), dtype=V.dtype, device=getattr(V, "device", None)
+    )
+    return xp.concat([V, zeros], axis=1)
 
 
 def concat(A2B, B2C, strict_check=True, check=True):
@@ -221,7 +237,8 @@ def concat(A2B, B2C, strict_check=True, check=True):
     if check:
         A2B = check_transform(A2B, strict_check=strict_check)
         B2C = check_transform(B2C, strict_check=strict_check)
-    return B2C.dot(A2B)
+    xp = get_array_namespace(B2C)
+    return xp.matmul(B2C, A2B)
 
 
 def transform(A2B, PA, strict_check=True):
@@ -268,12 +285,13 @@ def transform(A2B, PA, strict_check=True):
     """
     A2B = check_transform(A2B, strict_check=strict_check)
     PA = np.asarray(PA)
+    xp = get_array_namespace(PA)
 
     if PA.ndim == 1:
-        return np.dot(A2B, PA)
+        return xp.matmul(A2B, PA)
 
     if PA.ndim == 2:
-        return np.dot(PA, A2B.T)
+        return xp.matmul(PA, xp.matrix_transpose(A2B))
 
     raise ValueError("Cannot transform array with more than 2 dimensions")
 
@@ -394,8 +412,9 @@ def transform_sclerp(start, end, t):
         An alternative approach is spherical linear interpolation (SLERP) with
         position and quaternion.
     """
-    end2start = np.dot(invert_transform(start), end)
-    return np.dot(start, transform_power(end2start, t))
+    xp = get_array_namespace(start)
+    end2start = xp.matmul(invert_transform(start), end)
+    return xp.matmul(start, transform_power(end2start, t))
 
 
 def transform_power(A2B, t):

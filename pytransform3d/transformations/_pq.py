@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._transform import transform_from
 from .. import rotations
 
@@ -25,7 +26,9 @@ def check_pq(pq):
     ValueError
         If input is invalid
     """
-    pq = np.asarray(pq, dtype=np.float64)
+    pq = check_array_type(pq, "pq")
+    xp = get_array_namespace(pq)
+    pq = xp.asarray(pq, dtype=xp.float64)
     if pq.ndim != 1 or pq.shape[0] != 7:
         raise ValueError(
             "Expected position and orientation quaternion in a "
@@ -73,11 +76,13 @@ def pq_slerp(start, end, t):
     """
     start = check_pq(start)
     end = check_pq(end)
-    start_p, start_q = np.array_split(start, (3,))
-    end_p, end_q = np.array_split(end, (3,))
+    xp = get_array_namespace(start, end)
+    # Split position and quaternion
+    start_p, start_q = start[:3], start[3:]
+    end_p, end_q = end[:3], end[3:]
     q_t = rotations.quaternion_slerp(start_q, end_q, t, shortest_path=True)
     p_t = start_p + t * (end_p - start_p)
-    return np.hstack((p_t, q_t))
+    return xp.concat([p_t, q_t])
 
 
 def transform_from_pq(pq):
@@ -112,6 +117,9 @@ def dual_quaternion_from_pq(pq):
         (pw, px, py, pz, qw, qx, qy, qz)
     """
     pq = check_pq(pq)
+    xp = get_array_namespace(pq)
     real = pq[3:]
-    dual = 0.5 * rotations.concatenate_quaternions(np.r_[0, pq[:3]], real)
-    return np.hstack((real, dual))
+    # Create position quaternion: (0, x, y, z)
+    pos_quat = xp.concat([xp.asarray([0.0]), pq[:3]])
+    dual = 0.5 * rotations.concatenate_quaternions(pos_quat, real)
+    return xp.concat([real, dual])

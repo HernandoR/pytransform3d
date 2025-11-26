@@ -14,13 +14,13 @@ from pytransform3d.array_api import (
 from pytransform3d.rotations import (
     norm_vector,
     perpendicular_to_vectors,
-    perpendicular_to_vector,
+    # perpendicular_to_vector,
     angle_between_vectors,
     vector_projection,
-    plane_basis_from_normal,
+    # plane_basis_from_normal,
     norm_angle,
     active_matrix_from_angle,
-    passive_matrix_from_angle,
+    # passive_matrix_from_angle,
     quaternion_from_angle,
 )
 
@@ -266,7 +266,7 @@ class TestRotationsMatrixArrayAPI:
     def test_check_matrix_numpy(self):
         """Test check_matrix with numpy."""
         from pytransform3d.rotations import check_matrix
-        
+
         R = np.eye(3)
         result = check_matrix(R)
         assert isinstance(result, np.ndarray)
@@ -276,7 +276,7 @@ class TestRotationsMatrixArrayAPI:
     def test_check_matrix_torch(self):
         """Test check_matrix with torch."""
         from pytransform3d.rotations import check_matrix
-        
+
         R = torch.eye(3, dtype=torch.float64)
         result = check_matrix(R)
         assert isinstance(result, torch.Tensor)
@@ -285,7 +285,7 @@ class TestRotationsMatrixArrayAPI:
     def test_norm_matrix_numpy(self):
         """Test norm_matrix with numpy."""
         from pytransform3d.rotations import norm_matrix
-        
+
         R = np.eye(3) + np.random.randn(3, 3) * 0.01
         result = norm_matrix(R)
         assert isinstance(result, np.ndarray)
@@ -295,8 +295,11 @@ class TestRotationsMatrixArrayAPI:
     def test_norm_matrix_torch(self):
         """Test norm_matrix with torch."""
         from pytransform3d.rotations import norm_matrix
-        
-        R = torch.eye(3, dtype=torch.float64) + torch.randn(3, 3, dtype=torch.float64) * 0.01
+
+        R = (
+            torch.eye(3, dtype=torch.float64)
+            + torch.randn(3, 3, dtype=torch.float64) * 0.01
+        )
         result = norm_matrix(R)
         assert isinstance(result, torch.Tensor)
         assert result.shape == (3, 3)
@@ -304,7 +307,7 @@ class TestRotationsMatrixArrayAPI:
     def test_matrix_from_two_vectors_numpy(self):
         """Test matrix_from_two_vectors with numpy."""
         from pytransform3d.rotations import matrix_from_two_vectors
-        
+
         a = np.array([1.0, 0.0, 0.0])
         b = np.array([0.0, 1.0, 0.0])
         result = matrix_from_two_vectors(a, b)
@@ -315,7 +318,7 @@ class TestRotationsMatrixArrayAPI:
     def test_matrix_from_two_vectors_torch(self):
         """Test matrix_from_two_vectors with torch."""
         from pytransform3d.rotations import matrix_from_two_vectors
-        
+
         a = torch.tensor([1.0, 0.0, 0.0], dtype=torch.float64)
         b = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float64)
         result = matrix_from_two_vectors(a, b)
@@ -325,7 +328,7 @@ class TestRotationsMatrixArrayAPI:
     def test_quaternion_from_matrix_numpy(self):
         """Test quaternion_from_matrix with numpy."""
         from pytransform3d.rotations import quaternion_from_matrix
-        
+
         R = np.eye(3)
         result = quaternion_from_matrix(R)
         assert isinstance(result, np.ndarray)
@@ -336,21 +339,22 @@ class TestRotationsMatrixArrayAPI:
     def test_quaternion_from_matrix_torch(self):
         """Test quaternion_from_matrix with torch."""
         from pytransform3d.rotations import quaternion_from_matrix
-        
+
         R = torch.eye(3, dtype=torch.float64)
         result = quaternion_from_matrix(R)
         assert isinstance(result, torch.Tensor)
         assert result.shape == (4,)
         torch.testing.assert_close(
-            result, 
+            result,
             torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=torch.float64),
-            atol=1e-6, rtol=1e-6
+            atol=1e-6,
+            rtol=1e-6,
         )
 
     def test_axis_angle_from_matrix_numpy(self):
         """Test axis_angle_from_matrix with numpy."""
         from pytransform3d.rotations import axis_angle_from_matrix
-        
+
         R = np.eye(3)
         result = axis_angle_from_matrix(R)
         assert isinstance(result, np.ndarray)
@@ -360,7 +364,7 @@ class TestRotationsMatrixArrayAPI:
     def test_axis_angle_from_matrix_torch(self):
         """Test axis_angle_from_matrix with torch."""
         from pytransform3d.rotations import axis_angle_from_matrix
-        
+
         R = torch.eye(3, dtype=torch.float64)
         result = axis_angle_from_matrix(R)
         assert isinstance(result, torch.Tensor)
@@ -373,7 +377,7 @@ class TestRotationsEulerArrayAPI:
     def test_norm_euler_numpy(self):
         """Test norm_euler with numpy."""
         from pytransform3d.rotations import norm_euler
-        
+
         e = np.array([0.1, 0.2, 0.3])
         result = norm_euler(e, 0, 1, 2)
         assert isinstance(result, np.ndarray)
@@ -383,7 +387,7 @@ class TestRotationsEulerArrayAPI:
     def test_norm_euler_torch(self):
         """Test norm_euler with torch."""
         from pytransform3d.rotations import norm_euler
-        
+
         e = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
         result = norm_euler(e, 0, 1, 2)
         assert isinstance(result, torch.Tensor)
@@ -392,7 +396,7 @@ class TestRotationsEulerArrayAPI:
     def test_matrix_from_euler_numpy(self):
         """Test matrix_from_euler with numpy."""
         from pytransform3d.rotations import matrix_from_euler
-        
+
         e = np.array([0.1, 0.2, 0.3])
         result = matrix_from_euler(e, 0, 1, 2, True)
         assert isinstance(result, np.ndarray)
@@ -402,7 +406,7 @@ class TestRotationsEulerArrayAPI:
     def test_matrix_from_euler_torch(self):
         """Test matrix_from_euler with torch."""
         from pytransform3d.rotations import matrix_from_euler
-        
+
         e = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
         result = matrix_from_euler(e, 0, 1, 2, True)
         assert isinstance(result, torch.Tensor)
@@ -411,7 +415,7 @@ class TestRotationsEulerArrayAPI:
     def test_euler_near_gimbal_lock_numpy(self):
         """Test euler_near_gimbal_lock with numpy."""
         from pytransform3d.rotations import euler_near_gimbal_lock
-        
+
         e = np.array([0.1, 0.0, 0.3])  # Near gimbal lock
         result = euler_near_gimbal_lock(e, 0, 1, 0, tolerance=0.1)
         assert isinstance(result, (bool, np.bool_))
@@ -420,7 +424,7 @@ class TestRotationsEulerArrayAPI:
     def test_euler_near_gimbal_lock_torch(self):
         """Test euler_near_gimbal_lock with torch."""
         from pytransform3d.rotations import euler_near_gimbal_lock
-        
+
         e = torch.tensor([0.1, 0.0, 0.3], dtype=torch.float64)
         result = euler_near_gimbal_lock(e, 0, 1, 0, tolerance=0.1)
         # Result can be bool, np.bool_, or torch.Tensor
@@ -433,7 +437,7 @@ class TestRotationsMRPArrayAPI:
     def test_check_mrp_numpy(self):
         """Test check_mrp with numpy."""
         from pytransform3d.rotations import check_mrp
-        
+
         mrp = np.array([0.1, 0.2, 0.3])
         result = check_mrp(mrp)
         assert isinstance(result, np.ndarray)
@@ -443,7 +447,7 @@ class TestRotationsMRPArrayAPI:
     def test_check_mrp_torch(self):
         """Test check_mrp with torch."""
         from pytransform3d.rotations import check_mrp
-        
+
         mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
         result = check_mrp(mrp)
         assert isinstance(result, torch.Tensor)
@@ -452,7 +456,7 @@ class TestRotationsMRPArrayAPI:
     def test_mrp_double_numpy(self):
         """Test mrp_double with numpy."""
         from pytransform3d.rotations import mrp_double
-        
+
         mrp = np.array([0.1, 0.2, 0.3])
         result = mrp_double(mrp)
         assert isinstance(result, np.ndarray)
@@ -462,7 +466,7 @@ class TestRotationsMRPArrayAPI:
     def test_mrp_double_torch(self):
         """Test mrp_double with torch."""
         from pytransform3d.rotations import mrp_double
-        
+
         mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
         result = mrp_double(mrp)
         assert isinstance(result, torch.Tensor)
@@ -471,7 +475,7 @@ class TestRotationsMRPArrayAPI:
     def test_mrp_near_singularity_numpy(self):
         """Test mrp_near_singularity with numpy."""
         from pytransform3d.rotations import mrp_near_singularity
-        
+
         mrp = np.array([0.1, 0.2, 0.3])
         result = mrp_near_singularity(mrp)
         assert result is not None
@@ -480,7 +484,7 @@ class TestRotationsMRPArrayAPI:
     def test_mrp_near_singularity_torch(self):
         """Test mrp_near_singularity with torch."""
         from pytransform3d.rotations import mrp_near_singularity
-        
+
         mrp = torch.tensor([0.1, 0.2, 0.3], dtype=torch.float64)
         result = mrp_near_singularity(mrp)
         assert result is not None

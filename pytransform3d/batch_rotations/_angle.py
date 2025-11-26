@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
+
 
 def active_matrices_from_angles(basis, angles, out=None):
     """Compute active rotation matrices from rotation about basis vectors.
@@ -22,13 +24,15 @@ def active_matrices_from_angles(basis, angles, out=None):
     Rs : array, shape (..., 3, 3)
         Rotation matrices
     """
-    angles = np.asarray(angles)
-    c = np.cos(angles)
-    s = np.sin(angles)
+    angles = check_array_type(angles, "angles")
+    xp = get_array_namespace(angles)
+    
+    c = xp.cos(angles)
+    s = xp.sin(angles)
 
     R_shape = angles.shape + (3, 3)
     if out is None:
-        out = np.empty(R_shape)
+        out = xp.zeros(R_shape)
 
     out[..., basis, :] = 0.0
     out[..., :, basis] = 0.0

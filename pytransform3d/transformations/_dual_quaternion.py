@@ -1,7 +1,9 @@
-"""Dual quaternion operations."""
+"""Dual quaternion operations (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # kept for dtype specifications / fallbacks
 from numpy.testing import assert_array_almost_equal
+
+from ..array_api import get_array_namespace
 
 from ._screws import dual_quaternion_from_screw_parameters
 from ._transform import transform_from
@@ -59,6 +61,7 @@ def check_dual_quaternion(dq, unit=True):
         dual quaternion.
     """
     dq = np.asarray(dq, dtype=np.float64)
+    xp = get_array_namespace(dq)
     if dq.ndim != 1 or dq.shape[0] != 8:
         raise ValueError(
             "Expected dual quaternion with shape (8,), got "
@@ -68,9 +71,9 @@ def check_dual_quaternion(dq, unit=True):
         # Norm of a dual quaternion only depends on the real part because
         # the dual part vanishes with (1) epsilon ** 2 = 0 and (2) the real
         # and dual part being orthogonal, i.e., their product is 0.
-        real_norm = np.linalg.norm(dq[:4])
+        real_norm = xp.sqrt(xp.sum(dq[:4] ** 2))
         if real_norm == 0.0:
-            return np.r_[1, 0, 0, 0, dq[4:]]
+            return np.r_[1, 0, 0, 0, dq[4:]]  # keep numpy r_ for simplicity
         return dq / real_norm
     return dq
 
@@ -181,7 +184,8 @@ def norm_dual_quaternion(dq):
     # 2. ensure orthogonality of real and dual quaternion
     real = dq[:4]
     dual = dq[4:]
-    dual = dual - np.dot(real, dual) * real
+    xp = get_array_namespace(dq)
+    dual = dual - xp.sum(real * dual) * real
     return np.hstack((real, dual))
 
 
@@ -616,23 +620,24 @@ def screw_parameters_from_dual_quaternion(dq):
     theta = a[3]
 
     translation = 2 * concatenate_quaternions(dual, q_conj(real))[1:]
+    xp = get_array_namespace(translation)
     if abs(theta) < np.finfo(float).eps:
         # pure translation
-        d = np.linalg.norm(translation)
+        d = xp.sqrt(xp.sum(translation**2))
         if d < np.finfo(float).eps:
             s_axis = np.array([1, 0, 0])
         else:
             s_axis = translation / d
-        q = np.zeros(3)
+        q = xp.zeros(3, dtype=translation.dtype)
         theta = d
         h = np.inf
         return q, s_axis, h, theta
 
-    distance = np.dot(translation, s_axis)
+    distance = xp.sum(translation * s_axis)
     moment = 0.5 * (
-        np.cross(translation, s_axis)
+        xp.cross(translation, s_axis)
         + (translation - distance * s_axis) / np.tan(0.5 * theta)
     )
-    dual = np.cross(s_axis, moment)
+    dual = xp.cross(s_axis, moment)
     h = distance / theta
     return dual, s_axis, h, theta

@@ -1,8 +1,9 @@
-"""Jacobians of SE(3)."""
+"""Jacobians of SE(3) (Array API compatible)."""
 
 import math
 
-import numpy as np
+import numpy as np  # kept for bernoulli / fallbacks and r_ convenience
+from ..array_api import get_array_namespace
 
 from ._screws import (
     check_exponential_coordinates,
@@ -62,6 +63,7 @@ def left_jacobian_SE3(Stheta):
        doi: 10.1109/TRO.2014.2298059.
     """
     Stheta = check_exponential_coordinates(Stheta)
+    xp = get_array_namespace(Stheta)
 
     _, theta = screw_axis_from_exponential_coordinates(Stheta)
     if theta < np.finfo(float).eps:
@@ -69,7 +71,7 @@ def left_jacobian_SE3(Stheta):
 
     phi = Stheta[:3]
     J = left_jacobian_SO3(phi)
-    return np.block([[J, np.zeros((3, 3))], [_Q(Stheta), J]])
+    return xp.block([[J, xp.zeros((3, 3))], [_Q(Stheta), J]])
 
 
 def left_jacobian_SE3_series(Stheta, n_terms):
@@ -97,12 +99,13 @@ def left_jacobian_SE3_series(Stheta, n_terms):
     left_jacobian_SE3 : Left Jacobian of SE(3).
     """
     Stheta = check_exponential_coordinates(Stheta)
-    J = np.eye(6)
-    pxn = np.eye(6)
+    xp = get_array_namespace(Stheta)
+    J = xp.eye(6)
+    pxn = xp.eye(6)
     px = _curlyhat(Stheta)
     for n in range(n_terms):
-        pxn = np.dot(pxn, px) / (n + 2)
-        J += pxn
+        pxn = xp.matmul(pxn, px) / (n + 2)
+        J = J + pxn
     return J
 
 
@@ -147,6 +150,7 @@ def left_jacobian_SE3_inv(Stheta):
         Left inverse Jacobian of SE(3) at theta from Taylor series.
     """
     Stheta = check_exponential_coordinates(Stheta)
+    xp = get_array_namespace(Stheta)
 
     _, theta = screw_axis_from_exponential_coordinates(Stheta)
     if theta < np.finfo(float).eps:
@@ -154,10 +158,10 @@ def left_jacobian_SE3_inv(Stheta):
 
     phi = Stheta[:3]
     J_inv = left_jacobian_SO3_inv(phi)
-    return np.block(
+    return xp.block(
         [
-            [J_inv, np.zeros((3, 3))],
-            [-np.dot(J_inv, np.dot(_Q(Stheta), J_inv)), J_inv],
+            [J_inv, xp.zeros((3, 3))],
+            [-xp.matmul(J_inv, xp.matmul(_Q(Stheta), J_inv)), J_inv],
         ]
     )
 
@@ -165,7 +169,8 @@ def left_jacobian_SE3_inv(Stheta):
 def _Q(Stheta):
     rho = Stheta[3:]
     phi = Stheta[:3]
-    ph = np.linalg.norm(phi)
+    xp = get_array_namespace(Stheta)
+    ph = xp.sqrt(xp.sum(phi**2))
 
     px = cross_product_matrix(phi)
     rx = cross_product_matrix(rho)
@@ -179,22 +184,11 @@ def _Q(Stheta):
     sph = math.sin(ph)
 
     t1 = 0.5 * rx
-    t2 = (
-        (ph - sph)
-        / ph3
-        * (np.dot(px, rx) + np.dot(rx, px) + np.dot(px, np.dot(rx, px)))
-    )
+    t2 = ((ph - sph) / ph3) * (px @ rx + rx @ px + px @ (rx @ px))
     m3 = (1.0 - 0.5 * ph * ph - cph) / ph4
-    t3 = -m3 * (
-        np.dot(px, np.dot(px, rx))
-        + np.dot(rx, np.dot(px, px))
-        - 3 * np.dot(px, np.dot(rx, px))
-    )
+    t3 = -m3 * (px @ (px @ rx) + rx @ (px @ px) - 3 * px @ (rx @ px))
     m4 = 0.5 * (m3 - 3.0 * (ph - sph - ph3 / 6.0) / ph5)
-    t4 = -m4 * (
-        np.dot(px, np.dot(rx, np.dot(px, px)))
-        + np.dot(px, np.dot(px, np.dot(rx, px)))
-    )
+    t4 = -m4 * (px @ (rx @ (px @ px)) + px @ (px @ (rx @ px)))
 
     Q = t1 + t2 + t3 + t4
 
@@ -228,21 +222,23 @@ def left_jacobian_SE3_inv_series(Stheta, n_terms):
     from scipy.special import bernoulli
 
     Stheta = check_exponential_coordinates(Stheta)
-    J_inv = np.eye(6)
-    pxn = np.eye(6)
+    xp = get_array_namespace(Stheta)
+    J_inv = xp.eye(6)
+    pxn = xp.eye(6)
     px = _curlyhat(Stheta)
     b = bernoulli(n_terms + 1)
     for n in range(n_terms):
-        pxn = np.dot(pxn, px / (n + 1))
-        J_inv += b[n + 1] * pxn
+        pxn = xp.matmul(pxn, px / (n + 1))
+        J_inv = J_inv + b[n + 1] * pxn
     return J_inv
 
 
 def _curlyhat(Stheta):
     omega_matrix = cross_product_matrix(Stheta[:3])
-    return np.block(
+    xp = get_array_namespace(Stheta)
+    return xp.block(
         [
-            [omega_matrix, np.zeros((3, 3))],
+            [omega_matrix, xp.zeros((3, 3))],
             [cross_product_matrix(Stheta[3:]), omega_matrix],
         ]
     )

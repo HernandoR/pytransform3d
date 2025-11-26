@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace
+
 
 def axis_angles_from_matrices(Rs, traces=None, out=None):
     """Compute compact axis-angle representations from rotation matrices.
@@ -26,23 +28,34 @@ def axis_angles_from_matrices(Rs, traces=None, out=None):
         Axes of rotation and rotation angles: (x, y, z, angle)
     """
     Rs = np.asarray(Rs)
+    xp = get_array_namespace(Rs)
 
     instances_shape = Rs.shape[:-2]
 
     if traces is None:
-        traces = np.einsum("nii", Rs.reshape(-1, 3, 3))
+        Rs_reshaped = xp.reshape(Rs, (-1, 3, 3))
+        traces = xp.sum(
+            xp.asarray(
+                [Rs_reshaped[:, i, i] for i in range(3)], dtype=Rs.dtype
+            ),
+            axis=0,
+        )
         if instances_shape:
-            traces = traces.reshape(*instances_shape)
+            traces = xp.reshape(traces, instances_shape)
         else:
             # this works because indX will be a single boolean and
             # out[True, n] = value will assign value to out[n], while
             # out[False, n] = value will not assign value to out[n]
             traces = traces[0]
 
-    angles = np.arccos(np.clip((traces - 1.0) / 2.0, -1.0, 1.0))
+    angles = xp.acos(xp.clip((traces - 1.0) / 2.0, -1.0, 1.0))
 
     if out is None:
-        out = np.empty(instances_shape + (4,))
+        out = xp.empty(
+            instances_shape + (4,),
+            dtype=Rs.dtype,
+            device=getattr(Rs, "device", None),
+        )
 
     out[..., 0] = Rs[..., 2, 1] - Rs[..., 1, 2]
     out[..., 1] = Rs[..., 0, 2] - Rs[..., 2, 0]
@@ -56,22 +69,32 @@ def axis_angles_from_matrices(Rs, traces=None, out=None):
     # squared values of the rotation axis on the diagonal of this matrix.
     # We can still use the original formula to reconstruct the signs of
     # the rotation axis correctly.
-    angle_close_to_pi = np.abs(angles - np.pi) < 1e-4
+    angle_close_to_pi = (
+        xp.abs(angles - xp.asarray(np.pi, dtype=Rs.dtype)) < 1e-4
+    )
     angle_zero = angles == 0.0
-    angle_not_zero = np.logical_not(angle_zero)
+    angle_not_zero = ~angle_zero
 
-    Rs_diag = np.einsum("nii->ni", Rs.reshape(-1, 3, 3))
+    Rs_reshaped = xp.reshape(Rs, (-1, 3, 3))
+    Rs_diag = xp.asarray(
+        [Rs_reshaped[:, i, i] for i in range(3)], dtype=Rs.dtype
+    )
+    Rs_diag = xp.moveaxis(
+        Rs_diag, 0, -1
+    )  # Move axis from first to last position
     if instances_shape:
-        Rs_diag = Rs_diag.reshape(*(instances_shape + (3,)))
+        Rs_diag = xp.reshape(Rs_diag, instances_shape + (3,))
     else:
         Rs_diag = Rs_diag[0]
 
-    out[angle_close_to_pi, :3] = np.sqrt(
+    out[angle_close_to_pi, :3] = xp.sqrt(
         0.5 * (Rs_diag[angle_close_to_pi] + 1.0)
-    ) * np.sign(out[angle_close_to_pi, :3])
-    out[angle_not_zero, :3] /= np.linalg.norm(out[angle_not_zero, :3], axis=-1)[
-        ..., np.newaxis
-    ]
+    ) * xp.sign(out[angle_close_to_pi, :3])
+
+    norm_vals = xp.sqrt(
+        xp.sum(out[angle_not_zero, :3] ** 2, axis=-1, keepdims=True)
+    )
+    out[angle_not_zero, :3] = out[angle_not_zero, :3] / norm_vals
 
     out[angle_zero, 0] = 1.0
     out[angle_zero, 1:3] = 0.0
@@ -98,50 +121,56 @@ def quaternions_from_matrices(Rs, out=None):
         Unit quaternions to represent rotations: (w, x, y, z)
     """
     Rs = np.asarray(Rs)
+    xp = get_array_namespace(Rs)
     instances_shape = Rs.shape[:-2]
 
     if out is None:
-        out = np.empty(instances_shape + (4,))
+        out = xp.empty(
+            instances_shape + (4,),
+            dtype=Rs.dtype,
+            device=getattr(Rs, "device", None),
+        )
 
-    traces = np.einsum("nii", Rs.reshape(-1, 3, 3))
+    Rs_reshaped = xp.reshape(Rs, (-1, 3, 3))
+    traces = xp.sum(
+        xp.asarray([Rs_reshaped[:, i, i] for i in range(3)], dtype=Rs.dtype),
+        axis=0,
+    )
     if instances_shape:
-        traces = traces.reshape(*instances_shape)
+        traces = xp.reshape(traces, instances_shape)
     else:
         # this works because indX will be a single boolean and
         # out[True, n] = value will assign value to out[n], while
         # out[False, n] = value will not assign value to out[n]
         traces = traces[0]
+
     ind1 = traces > 0.0
-    s = 2.0 * np.sqrt(1.0 + traces[ind1])
+    s = 2.0 * xp.sqrt(1.0 + traces[ind1])
     out[ind1, 0] = 0.25 * s
     out[ind1, 1] = (Rs[ind1, 2, 1] - Rs[ind1, 1, 2]) / s
     out[ind1, 2] = (Rs[ind1, 0, 2] - Rs[ind1, 2, 0]) / s
     out[ind1, 3] = (Rs[ind1, 1, 0] - Rs[ind1, 0, 1]) / s
 
-    ind2 = np.logical_and(
-        np.logical_not(ind1),
-        np.logical_and(
-            Rs[..., 0, 0] > Rs[..., 1, 1], Rs[..., 0, 0] > Rs[..., 2, 2]
-        ),
+    ind2 = (
+        (~ind1)
+        & (Rs[..., 0, 0] > Rs[..., 1, 1])
+        & (Rs[..., 0, 0] > Rs[..., 2, 2])
     )
-    s = 2.0 * np.sqrt(1.0 + Rs[ind2, 0, 0] - Rs[ind2, 1, 1] - Rs[ind2, 2, 2])
+    s = 2.0 * xp.sqrt(1.0 + Rs[ind2, 0, 0] - Rs[ind2, 1, 1] - Rs[ind2, 2, 2])
     out[ind2, 0] = (Rs[ind2, 2, 1] - Rs[ind2, 1, 2]) / s
     out[ind2, 1] = 0.25 * s
     out[ind2, 2] = (Rs[ind2, 1, 0] + Rs[ind2, 0, 1]) / s
     out[ind2, 3] = (Rs[ind2, 0, 2] + Rs[ind2, 2, 0]) / s
 
-    ind3 = np.logical_and(np.logical_not(ind1), Rs[..., 1, 1] > Rs[..., 2, 2])
-    s = 2.0 * np.sqrt(1.0 + Rs[ind3, 1, 1] - Rs[ind3, 0, 0] - Rs[ind3, 2, 2])
+    ind3 = (~ind1) & (Rs[..., 1, 1] > Rs[..., 2, 2])
+    s = 2.0 * xp.sqrt(1.0 + Rs[ind3, 1, 1] - Rs[ind3, 0, 0] - Rs[ind3, 2, 2])
     out[ind3, 0] = (Rs[ind3, 0, 2] - Rs[ind3, 2, 0]) / s
     out[ind3, 1] = (Rs[ind3, 1, 0] + Rs[ind3, 0, 1]) / s
     out[ind3, 2] = 0.25 * s
     out[ind3, 3] = (Rs[ind3, 2, 1] + Rs[ind3, 1, 2]) / s
 
-    ind4 = np.logical_and(
-        np.logical_and(np.logical_not(ind1), np.logical_not(ind2)),
-        np.logical_not(ind3),
-    )
-    s = 2.0 * np.sqrt(1.0 + Rs[ind4, 2, 2] - Rs[ind4, 0, 0] - Rs[ind4, 1, 1])
+    ind4 = (~ind1) & (~ind2) & (~ind3)
+    s = 2.0 * xp.sqrt(1.0 + Rs[ind4, 2, 2] - Rs[ind4, 0, 0] - Rs[ind4, 1, 1])
     out[ind4, 0] = (Rs[ind4, 1, 0] - Rs[ind4, 0, 1]) / s
     out[ind4, 1] = (Rs[ind4, 0, 2] + Rs[ind4, 2, 0]) / s
     out[ind4, 2] = (Rs[ind4, 2, 1] + Rs[ind4, 1, 2]) / s

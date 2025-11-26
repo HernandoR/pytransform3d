@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from ..array_api import get_array_namespace, check_array_type
 from ._screws import transform_from_exponential_coordinates
 from ._transform import check_transform
 from ..rotations import norm_vector
@@ -41,7 +42,8 @@ def random_transform(
     mean = check_transform(mean)
     Stheta = random_exponential_coordinates(rng=rng, cov=cov)
     delta = transform_from_exponential_coordinates(Stheta)
-    return np.dot(delta, mean)
+    xp = get_array_namespace(delta, mean)
+    return xp.matmul(delta, mean)
 
 
 def random_screw_axis(rng=np.random.default_rng(0)):
@@ -66,6 +68,7 @@ def random_screw_axis(rng=np.random.default_rng(0)):
     """
     omega = norm_vector(rng.standard_normal(size=3))
     v = rng.standard_normal(size=3)
+    # Stay with numpy for random generation results
     return np.hstack((omega, v))
 
 

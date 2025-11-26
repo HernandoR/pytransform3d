@@ -1,6 +1,6 @@
-"""Conversions between transform representations."""
+"""Conversions between transform representations (Array API compatible)."""
 
-import numpy as np
+import numpy as np  # kept for r_ convenience and scalar trig
 from numpy.testing import assert_array_almost_equal
 
 from ._transform import translate_transform
@@ -13,6 +13,7 @@ from ..rotations import (
     check_skew_symmetric_matrix,
     left_jacobian_SO3,
 )
+from ..array_api import get_array_namespace
 
 
 def check_screw_parameters(q, s_axis, h):
@@ -57,7 +58,8 @@ def check_screw_parameters(q, s_axis, h):
             "Expected 3D vector with shape (3,), got array-like "
             "object with shape %s" % (s_axis.shape,)
         )
-    if np.linalg.norm(s_axis) == 0.0:
+    xp = get_array_namespace(s_axis)
+    if xp.sqrt(xp.sum(s_axis**2)) == 0.0:
         raise ValueError("s_axis must not have norm 0")
 
     q = np.asarray(q, dtype=np.float64)
@@ -67,7 +69,7 @@ def check_screw_parameters(q, s_axis, h):
             "object with shape %s" % (q.shape,)
         )
     if np.isinf(h):  # pure translation
-        q = np.zeros(3)
+        q = xp.zeros(3, dtype=np.float64)
 
     return q, norm_vector(s_axis), h
 
@@ -114,7 +116,8 @@ def check_screw_axis(screw_axis):
             "object with shape %s" % (screw_axis.shape,)
         )
 
-    omega_norm = np.linalg.norm(screw_axis[:3])
+    xp = get_array_namespace(screw_axis)
+    omega_norm = xp.sqrt(xp.sum(screw_axis[:3] ** 2))
     if (
         abs(omega_norm - 1.0) > 10.0 * np.finfo(float).eps
         and abs(omega_norm) > 10.0 * np.finfo(float).eps
@@ -124,7 +127,7 @@ def check_screw_axis(screw_axis):
             % omega_norm
         )
     if abs(omega_norm) < np.finfo(float).eps:
-        v_norm = np.linalg.norm(screw_axis[3:])
+        v_norm = xp.sqrt(xp.sum(screw_axis[3:] ** 2))
         if abs(v_norm - 1.0) > np.finfo(float).eps:
             raise ValueError(
                 "If the norm of the rotation axis is 0, then the direction "
@@ -241,8 +244,15 @@ def check_screw_matrix(screw_matrix, tolerance=1e-6, strict_check=True):
 
     check_skew_symmetric_matrix(screw_matrix[:3, :3], tolerance, strict_check)
 
-    omega_norm = np.linalg.norm(
-        [screw_matrix[2, 1], screw_matrix[0, 2], screw_matrix[1, 0]]
+    xp = get_array_namespace(screw_matrix)
+    omega_norm = xp.sqrt(
+        xp.sum(
+            xp.asarray(
+                [screw_matrix[2, 1], screw_matrix[0, 2], screw_matrix[1, 0]],
+                dtype=screw_matrix.dtype,
+            )
+            ** 2
+        )
     )
 
     if (
@@ -254,7 +264,7 @@ def check_screw_matrix(screw_matrix, tolerance=1e-6, strict_check=True):
             % omega_norm
         )
     if abs(omega_norm) < np.finfo(float).eps:
-        v_norm = np.linalg.norm(screw_matrix[:3, 3])
+        v_norm = xp.sqrt(xp.sum(screw_matrix[:3, 3] ** 2))
         if (
             abs(v_norm - 1.0) > np.finfo(float).eps
             and abs(v_norm) > np.finfo(float).eps
@@ -339,7 +349,8 @@ def norm_exponential_coordinates(Stheta):
         rotation by pi, there is an ambiguity that will be resolved so that
         the screw pitch is positive.
     """
-    theta = np.linalg.norm(Stheta[:3])
+    xp = get_array_namespace(Stheta)
+    theta = xp.sqrt(xp.sum(Stheta[:3] ** 2))
     if theta == 0.0:
         return Stheta
 
@@ -500,16 +511,17 @@ def screw_parameters_from_screw_axis(screw_axis):
     omega = screw_axis[:3]
     v = screw_axis[3:]
 
-    omega_norm = np.linalg.norm(omega)
+    xp = get_array_namespace(screw_axis)
+    omega_norm = xp.sqrt(xp.sum(omega**2))
     if abs(omega_norm) < np.finfo(float).eps:  # pure translation
-        q = np.zeros(3)
+        q = xp.zeros(3, dtype=screw_axis.dtype)
         s_axis = v
         h = np.inf
     else:
         s_axis = omega
-        h = omega.dot(v)
+        h = xp.sum(omega * v)
         moment = v - h * s_axis
-        q = np.cross(s_axis, moment)
+        q = xp.cross(s_axis, moment)
     return q, s_axis, h
 
 
@@ -573,11 +585,12 @@ def screw_axis_from_exponential_coordinates(Stheta):
 
     omega_theta = Stheta[:3]
     v_theta = Stheta[3:]
-    theta = np.linalg.norm(omega_theta)
+    xp = get_array_namespace(Stheta)
+    theta = xp.sqrt(xp.sum(omega_theta**2))
     if theta < np.finfo(float).eps:
-        theta = np.linalg.norm(v_theta)
+        theta = xp.sqrt(xp.sum(v_theta**2))
     if theta < np.finfo(float).eps:
-        return np.zeros(6), 0.0
+        return xp.zeros(6, dtype=Stheta.dtype), 0.0
     return Stheta / theta, theta
 
 
@@ -731,11 +744,12 @@ def screw_matrix_from_transform_log(transform_log):
     omega = np.array(
         [transform_log[2, 1], transform_log[0, 2], transform_log[1, 0]]
     )
-    theta = np.linalg.norm(omega)
+    xp = get_array_namespace(transform_log)
+    theta = xp.sqrt(xp.sum(omega**2))
     if abs(theta) < np.finfo(float).eps:
-        theta = np.linalg.norm(transform_log[:3, 3])
+        theta = xp.sqrt(xp.sum(transform_log[:3, 3] ** 2))
     if abs(theta) < np.finfo(float).eps:
-        return np.zeros((4, 4)), 0.0
+        return xp.zeros((4, 4), dtype=transform_log.dtype), 0.0
     return transform_log / theta, theta
 
 
@@ -777,7 +791,8 @@ def transform_log_from_exponential_coordinates(Stheta):
 
     omega = Stheta[:3]
     v = Stheta[3:]
-    transform_log = np.zeros((4, 4))
+    xp = get_array_namespace(Stheta)
+    transform_log = xp.zeros((4, 4), dtype=Stheta.dtype)
     transform_log[:3, :3] = cross_product_matrix(omega)
     transform_log[:3, 3] = v
     return transform_log
@@ -855,18 +870,21 @@ def transform_from_exponential_coordinates(Stheta, check=True):
         Stheta = check_exponential_coordinates(Stheta)
 
     omega_theta = Stheta[:3]
-    theta = np.linalg.norm(omega_theta)
+    xp = get_array_namespace(Stheta)
+    theta = xp.sqrt(xp.sum(omega_theta**2))
 
     if theta == 0.0:  # only translation
-        return translate_transform(np.eye(4), Stheta[3:], check=check)
+        return translate_transform(
+            xp.eye(4, dtype=Stheta.dtype), Stheta[3:], check=check
+        )
 
     omega_theta = Stheta[:3]
     v_theta = Stheta[3:]
 
-    A2B = np.eye(4)
+    A2B = xp.eye(4, dtype=Stheta.dtype)
     A2B[:3, :3] = matrix_from_compact_axis_angle(omega_theta)
     J = left_jacobian_SO3(omega_theta)
-    A2B[:3, 3] = np.dot(J, v_theta)
+    A2B[:3, 3] = J @ v_theta
     return A2B
 
 
@@ -912,15 +930,18 @@ def transform_from_transform_log(transform_log):
         [transform_log[2, 1], transform_log[0, 2], transform_log[1, 0]]
     )
     v_theta = transform_log[:3, 3]
-    theta = np.linalg.norm(omega_theta)
+    xp = get_array_namespace(transform_log)
+    theta = xp.sqrt(xp.sum(omega_theta**2))
 
     if theta == 0.0:  # only translation
-        return translate_transform(np.eye(4), v_theta)
+        return translate_transform(
+            xp.eye(4, dtype=transform_log.dtype), v_theta
+        )
 
-    A2B = np.eye(4)
+    A2B = xp.eye(4, dtype=transform_log.dtype)
     A2B[:3, :3] = matrix_from_compact_axis_angle(omega_theta)
     J = left_jacobian_SO3(omega_theta)
-    A2B[:3, 3] = np.dot(J, v_theta)
+    A2B[:3, 3] = J @ v_theta
     return A2B
 
 
@@ -950,13 +971,14 @@ def dual_quaternion_from_screw_parameters(q, s_axis, h, theta):
         (pw, px, py, pz, qw, qx, qy, qz)
     """
     q, s_axis, h = check_screw_parameters(q, s_axis, h)
+    xp = get_array_namespace(s_axis)
 
     if np.isinf(h):  # pure translation
         d = theta
         theta = 0
     else:
         d = h * theta
-    moment = np.cross(q, s_axis)
+    moment = xp.cross(q, s_axis)
 
     half_distance = 0.5 * d
     sin_half_angle = np.sin(0.5 * theta)
